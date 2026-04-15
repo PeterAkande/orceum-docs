@@ -7,23 +7,23 @@
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#6366F1",
-    "light": "#818CF8",
-    "dark": "#4F46E5",
+    "primary": "#e67e22",
+    "light": "#e6a873",
+    "dark": "#c55a3a",
     "anchors": {
-      "from": "#6366F1",
-      "to": "#4F46E5"
+      "from": "#c55a3a",
+      "to": "#9b4628"
     }
   },
   "topbarLinks": [
     {
       "name": "Support",
-      "url": "mailto:support@orceum.ai"
+      "url": "mailto:support@orceum.com"
     }
   ],
   "topbarCtaButton": {
     "name": "Dashboard",
-    "url": "https://app.orceum.ai"
+    "url": "https://orceum.com"
   },
   "tabs": [
     {

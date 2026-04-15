@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - 'export/**'
       - '.github/**'
+  workflow_dispatch:
 
 jobs:
   build:

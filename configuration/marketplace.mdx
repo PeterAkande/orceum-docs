@@ -1,0 +1,120 @@
+---
+title: "Marketplace"
+description: "Manage your app's visibility, status, and discoverability in the Orceum marketplace"
+---
+
+The Orceum marketplace is where users discover and install apps. Your app's status controls its visibility, and the `description` and `app_summary` fields drive its discoverability.
+
+---
+
+## App Status Lifecycle
+
+Every app starts in `PENDING` after registration:
+
+```
+PENDING → ACTIVE → SUSPENDED / ARCHIVED
+```
+
+| Status | Visible in Marketplace | Installable | Description |
+|--------|----------------------|-------------|-------------|
+| `PENDING` | No | Internal only | Just registered, not yet reviewed |
+| `ACTIVE` | Yes | Yes | Published and available to users |
+| `SUSPENDED` | No | No | Temporarily disabled by platform admin |
+| `ARCHIVED` | No | No | Permanently removed from the marketplace |
+
+<Note>
+Status transitions are managed via the Orceum developer dashboard. Contact support to request publication of your app.
+</Note>
+
+---
+
+## Searching the Marketplace
+
+Users and clients can search published apps:
+
+```bash
+curl "https://api.orceum.com/v1/apps/marketplace/search?q=todo&limit=20" \
+  -H "Authorization: Bearer USER_ORCEUM_TOKEN"
+```
+
+### Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `q` | string | Search query — matches against `name`, `description`, `app_summary` |
+| `app_type` | string | Filter by `NATIVE` or `MCP` |
+| `auth_type` | string | Filter by `NONE`, `API_KEY`, or `OAUTH` |
+| `limit` | integer | Results per page (default: 20, max: 100) |
+| `offset` | integer | Pagination offset |
+
+### Response
+
+```json
+{
+  "apps": [
+    {
+      "app_id": "app_a1b2c3d4",
+      "name": "Todo Manager",
+      "description": "Manage tasks and reminders with natural language",
+      "app_type": "NATIVE",
+      "auth_type": "API_KEY",
+      "status": "ACTIVE",
+      "install_count": 1247,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+---
+
+## App Stats
+
+Get aggregated statistics for your published app:
+
+```bash
+curl "https://api.orceum.com/v1/apps/marketplace/stats/{app_id}" \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN"
+```
+
+```json
+{
+  "app_id": "app_a1b2c3d4",
+  "active_installs": 1247,
+  "total_installs": 1580,
+  "uninstalls_last_30d": 34,
+  "action_calls_last_30d": 18920
+}
+```
+
+---
+
+## Optimizing for Discovery
+
+Orceum's AI-powered marketplace search considers `description`, `app_summary`, and action names when ranking results. To rank well:
+
+1. **Use specific keywords** in your `description` — tool names, task types, service names
+2. **Write clear `app_summary`** — the AI uses this for semantic matching
+3. **Distinct action names and descriptions** — each action that appears in search results adds keyword surface area
+4. **Keep `description` under 200 characters** — truncated descriptions perform worse
+
+See [AI Summary & Discoverability](/configuration/ai-summary) for in-depth guidance on writing effective descriptions.
+
+---
+
+## Managing Your App
+
+| Operation | Endpoint |
+|-----------|----------|
+| Update metadata | `PATCH /v1/apps/{app_id}` |
+| View your apps | `GET /v1/apps/` |
+| Get a specific app | `GET /v1/apps/{app_id}` |
+| Delete an app | `DELETE /v1/apps/{app_id}` |
+| Regenerate MCP manifest | `POST /v1/apps/{app_id}/regenerate-manifest` |
+
+<Warning>
+Deleting an app immediately removes it from the marketplace and terminates all active installations. Users lose access with no warning. Archive (via dashboard) instead of delete if you may restore the app later.
+</Warning>

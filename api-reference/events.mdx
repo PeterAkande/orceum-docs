@@ -1,0 +1,145 @@
+---
+title: "API Reference — Events (Webhooks)"
+description: "Endpoints for pushing events into Orca AI and verifying your webhook setup"
+---
+
+Base URL: `https://api.orceum.com/v1`
+
+These endpoints are used by your app to push events to Orceum (not by users). Authentication uses your app's `whs_*` webhook secret combined with HMAC signature.
+
+---
+
+## Push an Event
+
+```bash
+POST /apps/{app_id}/events
+```
+
+Pushes a real-time event into Orca AI's conversation pipeline for a specific user's installation.
+
+### Required Headers
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/json` |
+| `X-Orceum-Webhook-Secret` | Your `whs_*` secret |
+| `X-Hub-Signature-256` | `sha256=<hmac_hex>` — HMAC-SHA256 of the compact request body |
+| `X-Timestamp` | ISO 8601 UTC timestamp |
+
+### Request Body
+
+<ParamField body="installation_id" type="string" required>
+  The Orceum installation ID of the user to notify. From the `INSTALLED` lifecycle webhook.
+</ParamField>
+
+<ParamField body="event_type" type="string" required>
+  Dot-separated event descriptor: `noun.verb` — e.g. `task.completed`, `payment.failed`, `export.ready`
+</ParamField>
+
+<ParamField body="event_data" type="object" required>
+  Payload with all relevant context. Orca AI uses this to compose the message to the user. Be specific.
+</ParamField>
+
+<ParamField body="timestamp" type="string" required>
+  ISO 8601 UTC timestamp of when the event occurred, e.g. `2024-01-15T12:00:00Z`
+</ParamField>
+
+<ParamField body="priority" type="string" default="normal">
+  Event urgency. Affects delivery behavior.
+
+  | Value | Behavior |
+  |-------|----------|
+  | `low` | May be batched into digest |
+  | `normal` | Standard delivery |
+  | `high` | Prioritized, less likely to be deferred |
+  | `critical` | Immediate delivery regardless of user settings |
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Optional key-value pairs for your tracking. Not shown to users.
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/{app_id}/events \
+  -H "Content-Type: application/json" \
+  -H "X-Orceum-Webhook-Secret: whs_your_secret" \
+  -H "X-Hub-Signature-256: sha256=abc123def456..." \
+  -H "X-Timestamp: 2024-01-15T12:00:00Z" \
+  -d '{
+    "installation_id": "inst_abc123",
+    "event_type": "task.completed",
+    "event_data": {
+      "task_id": "task_789",
+      "title": "Send Q4 report",
+      "completed_at": "2024-01-15T12:00:00Z"
+    },
+    "timestamp": "2024-01-15T12:00:00Z",
+    "priority": "normal"
+  }'
+```
+
+### Response `200`
+
+```json
+{
+  "event_id": "evt_abc123",
+  "status": "QUEUED",
+  "action_taken": "CONVERSATION_STARTED"
+}
+```
+
+<ResponseField name="event_id" type="string">
+  Unique ID for this event. Use for debugging and support.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current event status: `QUEUED`, `PROCESSING`, `PROCESSED`, `IGNORED`, `DEFERRED`
+</ResponseField>
+
+<ResponseField name="action_taken" type="string">
+  What Orceum did with the event:
+
+  | Value | Meaning |
+  |-------|---------|
+  | `NOTIFIED` | Push notification sent, no new conversation |
+  | `CONVERSATION_STARTED` | New conversation opened with event context |
+  | `QUEUED` | Queued for digest delivery |
+  | `IGNORED` | Filtered out (low priority, quiet hours, bouncer decision) |
+</ResponseField>
+
+### Error Responses
+
+| Status | Cause |
+|--------|-------|
+| `401` | Invalid or missing signature |
+| `404` | `installation_id` not found or not active |
+| `422` | Invalid request body (missing required fields) |
+| `429` | Rate limit exceeded |
+
+---
+
+## Verify Webhook Setup
+
+```bash
+GET /apps/{app_id}/events/verify
+```
+
+Checks that your webhook endpoint is configured and reachable.
+
+**Headers:** `Authorization: Bearer YOUR_ORCEUM_TOKEN`
+
+**Response `200`:**
+
+```json
+{
+  "reachable": true,
+  "events_enabled": true,
+  "webhook_url": "https://todo.yourapp.com/webhooks/orceum",
+  "last_event_at": "2024-01-15T11:55:00Z",
+  "last_event_id": "evt_xyz456"
+}
+```
+
+Use this endpoint to confirm your integration is working after initial setup or after changing your webhook URL.

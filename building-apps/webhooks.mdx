@@ -1,0 +1,263 @@
+---
+title: "Webhooks (Event Push)"
+description: "Push events from your app to Orca AI — with HMAC signature verification"
+---
+
+Orceum webhooks let your app push events *into* Orca AI's conversation engine. Instead of waiting to be called, your app can proactively notify users: *"Your export is ready"*, *"New ticket assigned to you"*, *"Payment failed."*
+
+This is distinct from [lifecycle webhooks](/building-apps/lifecycle-webhooks), which are Orceum *calling you* to report installation events.
+
+---
+
+## Setup
+
+Enable webhooks in your app's `config`:
+
+```json
+{
+  "config": {
+    "webhook_config": {
+      "webhook_url": "https://todo.yourapp.com/webhooks/orceum",
+      "webhook_secret": "whs_your_generated_secret",
+      "events_enabled": true
+    }
+  }
+}
+```
+
+<Note>
+`webhook_secret` (the `whs_*` token) is a secret **you generate and store**. Orceum uses it to verify signatures on incoming lifecycle webhooks (INSTALLED/UNINSTALLED). This is **separate** from signing the events you *send* to Orceum.
+</Note>
+
+---
+
+## Pushing an Event
+
+Send a `POST` request to the Orceum events endpoint with your app's `app_id` and user's `installation_id`:
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/{app_id}/events \
+  -H "Content-Type: application/json" \
+  -H "X-Orceum-Webhook-Secret: whs_your_secret" \
+  -H "X-Hub-Signature-256: sha256=<hmac_signature>" \
+  -H "X-Timestamp: 2024-01-15T12:00:00Z" \
+  -d '{
+    "installation_id": "inst_abc123",
+    "event_type": "task.completed",
+    "event_data": {
+      "task_id": "task_789",
+      "title": "Send Q4 report",
+      "completed_at": "2024-01-15T12:00:00Z"
+    },
+    "timestamp": "2024-01-15T12:00:00Z",
+    "priority": "normal",
+    "metadata": {
+      "source": "todo-api",
+      "user_id": "user_123"
+    }
+  }'
+```
+
+### Event Fields
+
+<ParamField body="installation_id" type="string" required>
+  The Orceum installation ID for the user this event is for. Identifies which user's conversation to target.
+</ParamField>
+
+<ParamField body="event_type" type="string" required>
+  A dot-separated descriptor of what happened. Convention: `noun.verb` — e.g. `task.completed`, `payment.failed`, `report.ready`.
+</ParamField>
+
+<ParamField body="event_data" type="object" required>
+  Payload containing all relevant context about the event. Be specific — Orca AI uses this to compose the message to the user.
+</ParamField>
+
+<ParamField body="timestamp" type="string" required>
+  ISO 8601 UTC timestamp of when the event occurred.
+</ParamField>
+
+<ParamField body="priority" type="string" default="normal">
+  Urgency level. One of: `low`, `normal`, `high`, `critical`
+
+  - `critical` — triggers immediate notification regardless of digest settings
+  - `high` — prioritized for delivery
+  - `normal` / `low` — subject to digest and quiet-hour settings
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value pairs for your own tracking. Not shown to users but available for debugging.
+</ParamField>
+
+---
+
+## Signing Requests (HMAC)
+
+Every event you push must be signed so Orceum can verify it came from you.
+
+**Algorithm:** HMAC-SHA256 over the compact JSON body using your `whs_*` secret. The signature is the raw hex digest — no prefix.
+
+<Tabs>
+  <Tab title="Python">
+    ```python
+    import hmac
+    import hashlib
+    import json
+
+    def sign_payload(payload: dict, secret: str) -> str:
+        """Sign a webhook payload with HMAC-SHA256."""
+        # IMPORTANT: compact JSON, sorted keys, no extra spaces
+        body = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+        signature = hmac.new(
+            secret.encode("utf-8"),
+            body.encode("utf-8"),
+            hashlib.sha256
+        ).hexdigest()
+        return signature  # Raw hex — no 'sha256=' prefix in the value itself
+
+    # Usage:
+    payload = {
+        "installation_id": "inst_abc123",
+        "event_type": "task.completed",
+        "event_data": {"task_id": "task_789"},
+        "timestamp": "2024-01-15T12:00:00Z",
+        "priority": "normal"
+    }
+    sig = sign_payload(payload, "whs_your_secret")
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Orceum-Webhook-Secret": "whs_your_secret",
+        "X-Hub-Signature-256": f"sha256={sig}",
+        "X-Timestamp": payload["timestamp"]
+    }
+    ```
+  </Tab>
+  <Tab title="Node.js">
+    ```javascript
+    const crypto = require('crypto');
+
+    function signPayload(payload, secret) {
+      // Compact JSON, sorted keys
+      const body = JSON.stringify(
+        Object.keys(payload).sort().reduce((acc, key) => {
+          acc[key] = payload[key];
+          return acc;
+        }, {})
+      );
+      return crypto
+        .createHmac('sha256', secret)
+        .update(body, 'utf8')
+        .digest('hex'); // Raw hex — no prefix
+    }
+
+    const payload = {
+      installation_id: 'inst_abc123',
+      event_type: 'task.completed',
+      event_data: { task_id: 'task_789' },
+      timestamp: new Date().toISOString(),
+      priority: 'normal'
+    };
+
+    const sig = signPayload(payload, 'whs_your_secret');
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Orceum-Webhook-Secret': 'whs_your_secret',
+      'X-Hub-Signature-256': `sha256=${sig}`,
+      'X-Timestamp': payload.timestamp
+    };
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+The HMAC is computed over the **compact JSON** representation (no spaces, sorted keys). If you send pretty-printed JSON, the signature will not match.
+</Warning>
+
+---
+
+## Response
+
+A successful push returns:
+
+```json
+{
+  "event_id": "evt_abc123",
+  "status": "QUEUED",
+  "action_taken": "CONVERSATION_STARTED"
+}
+```
+
+### `action_taken` Values
+
+| Value | Meaning |
+|-------|---------|
+| `NOTIFIED` | User was notified (push notification sent) |
+| `CONVERSATION_STARTED` | A new conversation was started with the event context |
+| `QUEUED` | Event queued for digest delivery |
+| `IGNORED` | Event was filtered out (below priority threshold, quiet hours, or bouncer decision) |
+
+---
+
+## Event Processing Pipeline
+
+Orceum routes each event through a decision pipeline before deciding how to deliver it:
+
+```
+Incoming Event
+      │
+      ▼
+[BOUNCER AI] — Evaluates priority, user context, preferences
+      │
+      ├─→ IGNORE           → event_status: IGNORED
+      ├─→ NOTIFY_ONLY      → push notification, no conversation
+      ├─→ NOTIFY_WITH_TEMPLATE → notification + structured message
+      └─→ DEFER_TO_DIGEST  → batched for next digest window
+            │
+            └─→ RESURFACED → conversation created at digest time
+```
+
+---
+
+## Event Status Lifecycle
+
+| Status | Description |
+|--------|-------------|
+| `PENDING` | Just received, awaiting processing |
+| `QUEUED` | In the processing queue |
+| `PROCESSING` | Being handled by the pipeline |
+| `PROCESSED` | Successfully delivered |
+| `FAILED` | Delivery failed |
+| `IGNORED` | Filtered out by bouncer |
+| `DEFERRED` | Waiting for digest window |
+| `RESURFACED` | Surfaced from a digest |
+
+---
+
+## Verifying the Endpoint
+
+Check that your webhook integration is working:
+
+```bash
+curl https://api.orceum.com/v1/apps/{app_id}/events/verify \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN"
+```
+
+```json
+{
+  "reachable": true,
+  "last_event_at": "2024-01-15T11:55:00Z",
+  "events_enabled": true
+}
+```
+
+---
+
+## Two Secrets — Which Is Which?
+
+A common source of confusion:
+
+| Secret | Prefix | Who Holds It | Used For |
+|--------|--------|--------------|----------|
+| `webhook_secret` | `whs_*` | **You** (set by you, stored in Orceum) | Verifying lifecycle webhooks Orceum sends to your `installation_webhook_url` |
+| `orceum_webhook_secret` | `orc_*` | **You** (given by Orceum on registration) | Not used for event signing — it's your proof of registration identity |

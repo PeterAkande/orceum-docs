@@ -1,0 +1,223 @@
+---
+title: "OAuth Configuration"
+description: "Complete reference for configuring OAuth 2.0 in your Orceum app"
+---
+
+When `auth_type` is `OAUTH`, Orceum manages the entire token lifecycle: authorization redirect, code exchange, encrypted storage, automatic refresh, and revocation. All OAuth settings live in `config.oauth_config`.
+
+---
+
+## Full Configuration Example
+
+```json
+{
+  "config": {
+    "oauth_config": {
+      "client_id": "your_client_id",
+      "client_secret": "your_client_secret",
+      "authorization_url": "https://provider.com/oauth/authorize",
+      "token_url": "https://provider.com/oauth/token",
+      "revoke_url": "https://provider.com/oauth/revoke",
+      "scopes": ["read:user", "write:data"],
+      "use_pkce": true,
+      "client_redirect_uris": [
+        "https://api.orceum.com/v1/apps/YOUR_APP_ID/oauth/callback"
+      ],
+      "additional_auth_params": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "token_expiry_field": "expires_in",
+      "token_type_field": "token_type",
+      "server_url": "https://provider.com"
+    }
+  }
+}
+```
+
+---
+
+## Configuration Fields
+
+### Endpoint Discovery
+
+Provide endpoint URLs directly **or** let Orceum discover them automatically via OpenID Connect:
+
+<ParamField body="authorization_url" type="string">
+  The provider's authorization endpoint, e.g. `https://accounts.google.com/o/oauth2/v2/auth`
+</ParamField>
+
+<ParamField body="token_url" type="string">
+  The provider's token exchange endpoint, e.g. `https://oauth2.googleapis.com/token`
+</ParamField>
+
+<ParamField body="revoke_url" type="string">
+  *(Optional)* Token revocation endpoint. Called automatically when a user uninstalls your app.
+</ParamField>
+
+<ParamField body="openid_config_url" type="string">
+  *(Optional)* OpenID Connect discovery document URL, e.g. `https://accounts.google.com/.well-known/openid-configuration`
+
+  If provided, Orceum fetches `authorization_endpoint`, `token_endpoint`, and `revocation_endpoint` from here. Overrides `authorization_url` and `token_url` if both are set.
+</ParamField>
+
+<ParamField body="authorization_server_url" type="string">
+  *(Optional)* OAuth 2.0 Authorization Server Metadata URL (RFC 8414), e.g. `https://provider.com/.well-known/oauth-authorization-server`
+
+  Used as a fallback for endpoint discovery if `openid_config_url` is not provided.
+</ParamField>
+
+<ParamField body="server_url" type="string">
+  *(Optional)* Base URL for the provider. Orceum appends standard paths to try endpoint discovery.
+</ParamField>
+
+---
+
+### Client Credentials
+
+<ParamField body="client_id" type="string">
+  Your app's OAuth client ID from the provider.
+</ParamField>
+
+<ParamField body="client_secret" type="string">
+  Your app's OAuth client secret. Stored encrypted.
+
+  <Warning>
+    You cannot set both `client_id` explicitly and enable Dynamic Client Registration (DCR). Choose one approach.
+  </Warning>
+</ParamField>
+
+---
+
+### Authorization Flow
+
+<ParamField body="scopes" type="array">
+  List of OAuth scopes to request, e.g. `["read:user", "repo", "write:data"]`
+
+  Request only the scopes your app needs — users see these on the consent screen.
+</ParamField>
+
+<ParamField body="use_pkce" type="boolean" default="false">
+  Enable Proof Key for Code Exchange (PKCE). Recommended for public clients.
+
+  When `true`, Orceum generates a `code_verifier` / `code_challenge` pair and includes them in the flow.
+</ParamField>
+
+<ParamField body="additional_auth_params" type="object">
+  Additional query parameters added to the authorization URL. Useful for provider-specific settings.
+
+  **Google example** — get a refresh token on first consent:
+  ```json
+  { "access_type": "offline", "prompt": "consent" }
+  ```
+
+  **Slack example** — granular user scopes:
+  ```json
+  { "user_scope": "channels:read,users:read" }
+  ```
+</ParamField>
+
+<ParamField body="client_redirect_uris" type="array">
+  OAuth redirect URIs registered with your provider.
+
+  Always include:
+  ```
+  https://api.orceum.com/v1/apps/{your_app_id}/oauth/callback
+  ```
+</ParamField>
+
+---
+
+### Token Lifecycle
+
+<ParamField body="token_expiry_field" type="string" default="expires_in">
+  The field name in the token response that contains the expiry value (in seconds).
+
+  Most providers use `expires_in`. Some use `access_token_expiry` or `expiration`.
+</ParamField>
+
+<ParamField body="token_type_field" type="string" default="token_type">
+  The field name in the token response that describes the token type (e.g. `Bearer`).
+</ParamField>
+
+---
+
+### Dynamic Client Registration (DCR)
+
+<ParamField body="dcr_endpoint" type="string">
+  *(Optional)* RFC 7591 Dynamic Client Registration endpoint.
+
+  If provided and `client_id` is **not** set, Orceum will register your app dynamically with the provider on first connection.
+</ParamField>
+
+---
+
+## Token Lifecycle Managed by Orceum
+
+| Lifecycle Event | What Orceum Does |
+|----------------|-----------------|
+| New installation | Redirects user → receives code → exchanges for `access_token` + `refresh_token` |
+| Token nearing expiry | Automatically refreshes using `refresh_token` before the next action call |
+| App returns `401` | Attempts token refresh, retries request once |
+| Refresh fails | Marks installation `REAUTH_REQUIRED`, prompts user to re-authenticate |
+| User uninstalls | Calls `revoke_url` (if configured) to invalidate tokens |
+
+Tokens are stored encrypted at rest using Fernet symmetric encryption.
+
+---
+
+## Common Provider Configurations
+
+<AccordionGroup>
+  <Accordion title="Google">
+    ```json
+    {
+      "client_id": "xxx.apps.googleusercontent.com",
+      "client_secret": "GOCSPX-...",
+      "openid_config_url": "https://accounts.google.com/.well-known/openid-configuration",
+      "scopes": ["openid", "email", "profile"],
+      "use_pkce": true,
+      "additional_auth_params": {
+        "access_type": "offline",
+        "prompt": "consent"
+      },
+      "client_redirect_uris": [
+        "https://api.orceum.com/v1/apps/{app_id}/oauth/callback"
+      ]
+    }
+    ```
+    <Tip>Without `access_type: offline` and `prompt: consent`, Google will not return a refresh token after the first authorization.</Tip>
+  </Accordion>
+  <Accordion title="GitHub">
+    ```json
+    {
+      "client_id": "Ov23li...",
+      "client_secret": "your_client_secret",
+      "authorization_url": "https://github.com/login/oauth/authorize",
+      "token_url": "https://github.com/login/oauth/access_token",
+      "scopes": ["repo", "read:user", "notifications"],
+      "client_redirect_uris": [
+        "https://api.orceum.com/v1/apps/{app_id}/oauth/callback"
+      ]
+    }
+    ```
+    <Note>GitHub access tokens don't expire by default (unless you opt into expiring tokens in your OAuth app settings).</Note>
+  </Accordion>
+  <Accordion title="Slack">
+    ```json
+    {
+      "client_id": "1234567890.1234567890",
+      "client_secret": "your_client_secret",
+      "authorization_url": "https://slack.com/oauth/v2/authorize",
+      "token_url": "https://slack.com/api/oauth.v2.access",
+      "scopes": ["channels:read", "chat:write", "users:read"],
+      "additional_auth_params": {
+        "user_scope": "channels:read,users:read"
+      },
+      "client_redirect_uris": [
+        "https://api.orceum.com/v1/apps/{app_id}/oauth/callback"
+      ]
+    }
+    ```
+  </Accordion>
+</AccordionGroup>

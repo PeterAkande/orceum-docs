@@ -1,0 +1,206 @@
+---
+title: "Handling Action Calls"
+description: "Understand the format of action requests sent to your app and how to route and respond to them"
+---
+
+When Orca AI decides an action from your app should run, Orceum constructs and sends an authenticated HTTP request to your `base_url` + the action's `endpoint`. Your job is to handle it, execute the work, and return a clean response.
+
+---
+
+## Request Format
+
+Orceum always sends a `POST` request regardless of your action's `method` field (the method is used for OpenAPI generation and display purposes). The request body is JSON:
+
+```json
+{
+  "event": "create_task",
+  "event_data": {
+    "title": "Send Q4 report",
+    "due_date": "2024-12-31"
+  },
+  "timestamp": "2024-01-15T12:00:00Z"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event` | string | The action name from your manifest (e.g. `create_task`) |
+| `event_data` | object | The parameter values resolved by Orca AI |
+| `timestamp` | string | ISO 8601 UTC timestamp of when the call was made |
+
+---
+
+## Request Headers
+
+Every action call includes these headers:
+
+```http
+POST /actions HTTP/1.1
+Host: todo.yourapp.com
+Content-Type: application/json
+Authorization: Bearer sk-user-api-key       # (API_KEY auth)
+X-Orceum-Installation-Id: inst_abc123
+X-Request-ID: req_xyz789
+X-Timestamp: 2024-01-15T12:00:00Z
+```
+
+<Note>
+**`X-Orceum-Installation-Id`** identifies which user's installation triggered this call. Use this to look up the correct user record in your database. Every user has a unique installation ID — don't treat all calls as coming from the same account.
+</Note>
+
+### Auth Headers by Type
+
+<Tabs>
+  <Tab title="NONE">
+    No credential headers injected. Your app receives only the standard headers above.
+  </Tab>
+  <Tab title="API_KEY (Header)">
+    ```http
+    Authorization: Bearer sk-user-provided-key
+    ```
+    Or using your custom `auth_header_key`:
+    ```http
+    X-API-Key: sk-user-provided-key
+    ```
+  </Tab>
+  <Tab title="API_KEY (Query)">
+    Key appended to the request URL:
+    ```
+    POST /actions?api_key=sk-user-provided-key
+    ```
+  </Tab>
+  <Tab title="OAUTH">
+    ```http
+    Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
+    ```
+    Always a Bearer token. Orceum auto-refreshes before the call if needed.
+  </Tab>
+</Tabs>
+
+---
+
+## Additional Headers and Query Params
+
+Add static headers or query params to *all* action calls via `config`:
+
+```json
+{
+  "config": {
+    "additional_headers": {
+      "X-App-Version": "2.0",
+      "X-Service-Region": "eu-west-1"
+    },
+    "additional_query_params": {
+      "format": "json",
+      "version": "2"
+    }
+  }
+}
+```
+
+These are merged with every request, alongside the credential headers.
+
+---
+
+## Routing Actions
+
+If all your actions share a single endpoint (e.g. `POST /actions`), use `event` to route:
+
+<Tabs>
+  <Tab title="Python (FastAPI)">
+    ```python
+    from fastapi import FastAPI, Request, Header
+    from typing import Optional
+
+    app = FastAPI()
+
+    @app.post("/actions")
+    async def handle_action(
+        request: Request,
+        x_orceum_installation_id: Optional[str] = Header(None)
+    ):
+        body = await request.json()
+        event = body.get("event")
+        event_data = body.get("event_data", {})
+        installation_id = x_orceum_installation_id
+
+        if event == "create_task":
+            return await create_task(installation_id, event_data)
+        elif event == "list_tasks":
+            return await list_tasks(installation_id, event_data)
+        elif event == "delete_task":
+            return await delete_task(installation_id, event_data)
+        else:
+            return {"error": f"Unknown action: {event}"}, 400
+    ```
+  </Tab>
+  <Tab title="Node.js (Express)">
+    ```javascript
+    const express = require('express');
+    const app = express();
+    app.use(express.json());
+
+    const handlers = {
+      create_task: require('./handlers/createTask'),
+      list_tasks:  require('./handlers/listTasks'),
+      delete_task: require('./handlers/deleteTask'),
+    };
+
+    app.post('/actions', async (req, res) => {
+      const { event, event_data } = req.body;
+      const installationId = req.headers['x-orceum-installation-id'];
+
+      const handler = handlers[event];
+      if (!handler) {
+        return res.status(400).json({ error: `Unknown action: ${event}` });
+      }
+
+      const result = await handler(installationId, event_data);
+      res.json(result);
+    });
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Response Format
+
+Return a JSON object with a `result` key:
+
+```json
+{
+  "result": {
+    "task_id": "task_789",
+    "title": "Send Q4 report",
+    "due_date": "2024-12-31",
+    "status": "created"
+  }
+}
+```
+
+The `result` value can be any JSON — an object, array, string, or number. Orca AI summarizes it conversationally to the user.
+
+### For long-running operations
+
+If your action takes more than a few seconds, return immediately with a reference, then push a webhook event when complete:
+
+```json
+{
+  "result": {
+    "task_id": "task_789",
+    "status": "processing",
+    "message": "Export started. You'll be notified when it's ready."
+  }
+}
+```
+
+Then send a webhook event when done. See [Webhooks](/building-apps/webhooks).
+
+---
+
+## Timeout
+
+Orceum waits **30 seconds** for a response. If your endpoint doesn't respond within that window, the call is marked as failed and the user receives an error message.
+
+For operations that take longer, always use the async pattern above.

@@ -1,0 +1,113 @@
+---
+title: "Overview"
+description: "What is an Orceum App, how it fits in the platform, and which type to build"
+---
+
+## What is an Orceum App?
+
+An Orceum App is a pluggable service that extends what Orceum's AI agents can **do**. When a user says *"send an email"*, *"book a meeting"*, or *"search my Slack"*, Orceum identifies the right installed app, constructs the action parameters, and calls your service.
+
+**The contract is simple:**
+
+1. You register your app with a **manifest** describing what it can do
+2. Users **install** your app and provide credentials (API key, OAuth, or none)
+3. When triggered, Orceum `POST`s to your endpoint with the action and parameters
+4. You execute the action and return a JSON result
+5. Optionally, you **push events** back to Orceum (e.g. "new email received")
+
+---
+
+## Platform Architecture
+
+```
+User: "Send an email to Sarah"
+        ↓
+┌──────────────────────────────────┐
+│       ORCEUM AI BRAIN            │
+│  Identifies app + action + params│
+└────────────┬─────────────────────┘
+             ↓
+┌──────────────────────────────────┐
+│      EXECUTION ENGINE            │
+│  Resolves installation           │
+│  Decrypts credentials            │
+│  Calls your app                  │
+└────────────┬─────────────────────┘
+             ↓
+┌──────────────────────────────────┐
+│         YOUR APP                 │
+│  Receives action call            │
+│  Executes → returns JSON         │
+│                                  │
+│  ← Optionally pushes events back │
+└──────────────────────────────────┘
+```
+
+### Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **App** | Your registered service — endpoint URL, auth config, manifest |
+| **Manifest** | JSON describing your app's actions and their parameters |
+| **Installation** | A per-user binding of your app — stores the user's credentials |
+| **Action** | A single capability your app exposes (e.g. `email.send`) |
+| **Execution** | A single invocation of an action during a conversation |
+| **Webhook** | HTTP call from your app to Orceum pushing a real-time event |
+| **Lifecycle Webhook** | Call from Orceum to your app when a user installs/uninstalls |
+
+---
+
+## App Types
+
+<CardGroup cols={2}>
+  <Card title="Native" icon="globe">
+    **Transport:** HTTPS POST  
+    **Manifest:** You provide it  
+    **Best for:** Any HTTP API you control
+
+    The most common type. Orceum sends a `POST` to your `app_url` with the action and parameters.
+  </Card>
+  <Card title="MCP" icon="server">
+    **Transport:** MCP Protocol (SSE / Streamable HTTP)  
+    **Manifest:** Auto-discovered from your server  
+    **Best for:** MCP-compatible tool servers
+
+    Orceum connects to your MCP server and calls tools using the Model Context Protocol.
+  </Card>
+</CardGroup>
+
+<Note>
+**System** and **Skill** app types are internal to Orceum. System apps are built-in (Ping, Weather, Notes). Skill apps are user-uploaded code bundles. Neither is available for third-party developers.
+</Note>
+
+### Comparison
+
+| Feature | Native | MCP |
+|---------|--------|-----|
+| Transport | HTTPS POST | MCP Protocol |
+| Manifest source | You define it | Auto-discovered via `tools/list` |
+| Auth support | NONE, API_KEY, OAUTH | NONE, OAUTH |
+| Action call format | `{ event, event_data, timestamp }` | MCP `call_tool` |
+| Webhook support | Yes | Yes |
+| Setup complexity | Low | Medium |
+
+---
+
+## Installation Lifecycle
+
+```
+App Registered (ACTIVE)
+       ↓
+User initiates install → POST /v1/apps/{app_id}/install
+       ↓
+Next action determined by auth_type:
+  NONE     → Instantly ACTIVE
+  API_KEY  → Collect key → ACTIVE
+  OAUTH    → Redirect → consent → callback → ACTIVE
+       ↓
+Lifecycle webhook: INSTALLED sent to your app
+       ↓
+App ready to handle action calls
+       ↓
+User uninstalls → Lifecycle webhook: UNINSTALLED
+```

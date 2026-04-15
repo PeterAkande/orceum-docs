@@ -1,0 +1,164 @@
+---
+title: "Quick Start"
+description: "Register a working Orceum app in under 10 minutes"
+---
+
+## What You'll Build
+
+A simple **Todo Manager** app — Native HTTP, API key auth, 3 actions (`todo.create`, `todo.list`, `todo.complete`).
+
+---
+
+## Step 1 — Write Your Endpoint
+
+Create a single HTTP endpoint. Orceum will `POST` to it with `{ event, event_data, timestamp }`.
+
+```python app.py
+from fastapi import FastAPI, Header
+
+app = FastAPI()
+todos = {}
+
+@app.post("/orceum/actions")
+async def handle(
+    request,
+    x_orceum_installation_id: str = Header(...),
+):
+    body = await request.json()
+    event = body["event"]
+    params = body["event_data"]
+
+    if event == "todo.create":
+        tid = str(len(todos) + 1)
+        todos[tid] = {"id": tid, "title": params["title"], "done": False}
+        return {"status": "success", "data": {"todo_id": tid}}
+
+    if event == "todo.list":
+        return {"status": "success", "data": {"todos": list(todos.values())}}
+
+    if event == "todo.complete":
+        todo = todos.get(params["todo_id"])
+        if not todo:
+            return {"status": "error", "error": {"message": "Not found"}}
+        todo["done"] = True
+        return {"status": "success", "data": {"message": f"Done: {todo['title']}"}}
+
+    return {"status": "error", "error": {"message": f"Unknown event: {event}"}}
+```
+
+<Note>
+`X-Orceum-Installation-Id` is sent on **every** call. Use it to identify which user triggered the action.
+</Note>
+
+---
+
+## Step 2 — Register Your App
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/ \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Todo Manager",
+    "description": "Create, list, and manage todo items",
+    "version": "1.0.0",
+    "app_url": "https://your-app.example.com/orceum/actions",
+    "auth_type": "API_KEY",
+    "manifest": {
+      "actions": [
+        {
+          "event": "todo.create",
+          "description": "Create a new todo item for the user",
+          "parameters": [
+            { "name": "title", "type": "string", "description": "The todo title", "required": true }
+          ]
+        },
+        {
+          "event": "todo.list",
+          "description": "List all todo items for the user",
+          "parameters": []
+        },
+        {
+          "event": "todo.complete",
+          "description": "Mark a todo item as complete",
+          "parameters": [
+            { "name": "todo_id", "type": "string", "description": "ID of the todo to complete", "required": true }
+          ]
+        }
+      ]
+    },
+    "config": {
+      "auth_config": {
+        "auth_header_key": "X-API-Key",
+        "authentication_scheme": ""
+      }
+    }
+  }'
+```
+
+**You'll get back an `app_id`. Save it.**
+
+---
+
+## Step 3 — Install the App as a User
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/{app_id}/install \
+  -H "Authorization: Bearer USER_TOKEN"
+```
+
+Since `auth_type` is `API_KEY`, Orceum will return `next_action: "COLLECT_API_KEY"`. Submit the key:
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/installations/{installation_id}/api-key \
+  -H "Authorization: Bearer USER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "api_key": "my-secret-key" }'
+```
+
+---
+
+## Step 4 — Test It
+
+Say to Orceum: **"Create a todo: Buy groceries"**
+
+Orceum calls your endpoint:
+
+```json
+POST /orceum/actions
+X-Orceum-Installation-Id: f47ac10b-...
+X-API-Key: my-secret-key
+
+{
+  "event": "todo.create",
+  "event_data": { "title": "Buy groceries" },
+  "timestamp": "2026-04-15T10:30:00.000000+00:00"
+}
+```
+
+Your app returns:
+
+```json
+{ "status": "success", "data": { "todo_id": "1" } }
+```
+
+The AI tells the user: *"Done! Created your todo: Buy groceries (ID: 1)"*
+
+---
+
+## What's Next
+
+<CardGroup cols={2}>
+  <Card title="The Manifest" icon="list" href="/building-apps/manifest">
+    Learn how to write descriptions the AI uses correctly
+  </Card>
+  <Card title="Authentication" icon="lock" href="/building-apps/authentication">
+    API key, OAuth 2.0, and no-auth options
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/building-apps/webhooks">
+    Push events from your app to Orceum
+  </Card>
+  <Card title="MCP Apps" icon="server" href="/building-apps/mcp-apps">
+    Build with the Model Context Protocol
+  </Card>
+</CardGroup>

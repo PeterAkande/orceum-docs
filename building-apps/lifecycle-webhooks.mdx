@@ -1,0 +1,208 @@
+---
+title: "Lifecycle Webhooks"
+description: "Receive signed notifications when users install or uninstall your app"
+---
+
+Lifecycle webhooks are HTTP POSTs that Orceum sends **to your server** when a user installs or uninstalls your app. Use them to provision accounts, store installation IDs, clean up data, and revoke credentials.
+
+Configure your listener URL in `config.installation_webhook_url` during registration or via PATCH:
+
+```json
+{
+  "config": {
+    "installation_webhook_url": "https://todo.yourapp.com/webhooks/lifecycle"
+  }
+}
+```
+
+---
+
+## INSTALLED Event
+
+Sent immediately after a user completes installation (credentials validated, status → `ACTIVE`).
+
+### Payload
+
+```json
+{
+  "event": "INSTALLED",
+  "app_id": "app_a1b2c3d4",
+  "installation_id": "inst_abc123",
+  "user_id": "user_xyz789",
+  "user_email": "alice@example.com",
+  "user_name": "Alice Johnson",
+  "installed_at": "2024-01-15T12:00:00Z",
+  "metadata": {
+    "auth_type": "API_KEY",
+    "app_version": "1.0.0"
+  }
+}
+```
+
+### Key Fields to Save
+
+| Field | Why You Need It |
+|-------|----------------|
+| `installation_id` | Maps every future action call (`X-Orceum-Installation-Id`) to the right user |
+| `user_id` | Orceum's unique identifier for the user |
+| `user_email` | Seed your own user record or match to existing data |
+| `app_id` | Useful if you handle multiple apps from one webhook URL |
+
+<Tip>
+Store `installation_id → internal_user_id` in your database as soon as you receive this event. You'll use it on every action call to identify the user.
+</Tip>
+
+---
+
+## UNINSTALLED Event
+
+Sent when a user removes your app. Use this to clean up resources and revoke any credentials you stored independently.
+
+### Payload
+
+```json
+{
+  "event": "UNINSTALLED",
+  "app_id": "app_a1b2c3d4",
+  "installation_id": "inst_abc123",
+  "user_id": "user_xyz789",
+  "uninstalled_at": "2024-01-15T15:30:00Z"
+}
+```
+
+On receiving `UNINSTALLED`:
+- Remove the installation mapping from your database
+- Revoke any tokens or API keys you stored for this user
+- Cancel any active subscriptions or background jobs tied to this installation
+
+---
+
+## Signature Verification
+
+Every lifecycle webhook is signed using your `orceum_webhook_secret` (the `orc_*` secret given to you at registration). **Always verify signatures** before processing.
+
+### Signature Headers
+
+```http
+POST /webhooks/lifecycle HTTP/1.1
+Content-Type: application/json
+X-Orceum-Signature: sha256=abc123def456...
+X-Timestamp: 2024-01-15T12:00:00Z
+```
+
+The signature is HMAC-SHA256 over the **raw request body bytes**, using your `orc_*` secret. The header value includes the `sha256=` prefix.
+
+<Tabs>
+  <Tab title="Python (FastAPI)">
+    ```python
+    import hmac
+    import hashlib
+    from fastapi import FastAPI, Request, HTTPException, Header
+    from typing import Optional
+
+    app = FastAPI()
+
+    ORCEUM_WEBHOOK_SECRET = "orc_sk_your_secret_here"
+
+    def verify_signature(
+        body: bytes,
+        signature_header: str,
+        secret: str
+    ) -> bool:
+        """Verify HMAC-SHA256 signature from Orceum lifecycle webhook."""
+        if not signature_header.startswith("sha256="):
+            return False
+        provided_sig = signature_header[len("sha256="):]
+        expected_sig = hmac.new(
+            secret.encode("utf-8"),
+            body,
+            hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(provided_sig, expected_sig)
+
+    @app.post("/webhooks/lifecycle")
+    async def lifecycle_webhook(
+        request: Request,
+        x_orceum_signature: Optional[str] = Header(None)
+    ):
+        body = await request.body()
+
+        if not x_orceum_signature or not verify_signature(
+            body, x_orceum_signature, ORCEUM_WEBHOOK_SECRET
+        ):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+
+        payload = await request.json()
+        event = payload.get("event")
+
+        if event == "INSTALLED":
+            installation_id = payload["installation_id"]
+            user_email = payload["user_email"]
+            # Store installation_id → user mapping
+            await provision_user(installation_id, user_email, payload)
+
+        elif event == "UNINSTALLED":
+            installation_id = payload["installation_id"]
+            # Clean up
+            await deprovision_user(installation_id)
+
+        return {"status": "ok"}
+    ```
+  </Tab>
+  <Tab title="Node.js (Express)">
+    ```javascript
+    const express = require('express');
+    const crypto = require('crypto');
+    const app = express();
+
+    const ORCEUM_WEBHOOK_SECRET = 'orc_sk_your_secret_here';
+
+    // Use raw body for signature verification
+    app.use('/webhooks/lifecycle', express.raw({ type: 'application/json' }));
+
+    function verifySignature(rawBody, signatureHeader, secret) {
+      if (!signatureHeader || !signatureHeader.startsWith('sha256=')) return false;
+      const provided = signatureHeader.slice('sha256='.length);
+      const expected = crypto
+        .createHmac('sha256', secret)
+        .update(rawBody)
+        .digest('hex');
+      return crypto.timingSafeEqual(
+        Buffer.from(provided, 'hex'),
+        Buffer.from(expected, 'hex')
+      );
+    }
+
+    app.post('/webhooks/lifecycle', (req, res) => {
+      const sig = req.headers['x-orceum-signature'];
+      if (!verifySignature(req.body, sig, ORCEUM_WEBHOOK_SECRET)) {
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+
+      const payload = JSON.parse(req.body);
+      if (payload.event === 'INSTALLED') {
+        // provision user
+      } else if (payload.event === 'UNINSTALLED') {
+        // deprovision user
+      }
+
+      res.json({ status: 'ok' });
+    });
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+Use `hmac.compare_digest` (Python) or `crypto.timingSafeEqual` (Node.js) for signature comparison. Never use `==` — it is vulnerable to timing attacks.
+</Warning>
+
+---
+
+## Signing Key Reference
+
+| Secret | Prefix | Who Generates It | Used For |
+|--------|--------|-----------------|----------|
+| `orc_*` | `orc_` | Orceum (given at registration) | Verifying Orceum's lifecycle webhooks to *you* |
+| `whs_*` | `whs_` | You (set in your `webhook_config`) | Verifying events *you* push to Orceum |
+
+The `orc_*` secret is shown **once** at registration. Store it in your secrets manager immediately.

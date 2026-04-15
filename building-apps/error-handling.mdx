@@ -1,0 +1,110 @@
+---
+title: "Error Handling"
+description: "How Orceum handles error responses, retries, and re-authentication from your app"
+---
+
+Orceum interprets your HTTP response status codes to decide whether to retry, trigger re-authentication, or surface an error to the user.
+
+---
+
+## Status Code Behavior
+
+| Status Code | Orceum Behavior |
+|-------------|----------------|
+| `200` | Success — `result` returned to Orca AI |
+| `401` | Trigger token refresh (OAuth) or prompt re-auth, then retry once |
+| `429` | Retry with backoff, up to 3 attempts |
+| Any other error | Mark call as failed, surface error message to user |
+
+---
+
+## Error Response Format
+
+When returning a non-200 status, include a JSON body with a `detail` field:
+
+```json
+{
+  "detail": "Task with ID task_999 was not found"
+}
+```
+
+Orca AI will relay this message to the user in a conversational way.
+
+---
+
+## 401 — Unauthorized
+
+The `401` flow is handled automatically by Orceum:
+
+<Steps>
+  <Step title="App returns 401">
+    Your endpoint returns HTTP 401.
+  </Step>
+  <Step title="OAuth: attempt token refresh">
+    If `auth_type` is `OAUTH`, Orceum attempts to refresh the access token using the stored refresh token.
+  </Step>
+  <Step title="Retry the request">
+    If refresh succeeds, Orceum retries the exact same request once with the new token.
+  </Step>
+  <Step title="If refresh fails → REAUTH_REQUIRED">
+    The installation status is set to `REAUTH_REQUIRED`. Orceum notifies the user with a re-authentication link.
+  </Step>
+  <Step title="API_KEY: trigger re-submission">
+    If `auth_type` is `API_KEY` and you return 401, Orceum prompts the user to re-submit their API key.
+  </Step>
+</Steps>
+
+<Note>
+Orceum only retries once after a 401. If the second attempt also returns 401, it marks the installation as `REAUTH_REQUIRED` and stops.
+</Note>
+
+---
+
+## 429 — Rate Limited
+
+When Orceum receives a `429` from your app:
+
+1. Waits a short backoff interval
+2. Retries the request
+3. Retries up to **3 times total**
+4. If all 3 attempts return `429`, the call is marked as failed and the user is informed
+
+Respect standard `Retry-After` headers if your service uses them — Orceum will honor them.
+
+---
+
+## 500+ — Server Errors
+
+Server errors (`5xx`) are not retried. Orceum immediately marks the call as failed and returns an error to the user:
+
+```
+I tried to run "create_task" but your Todo Manager app returned an error. Please try again later.
+```
+
+---
+
+## Validation Errors
+
+If the Orca AI sends parameters your app rejects, return `400` with a descriptive message:
+
+```json
+HTTP 400
+
+{
+  "detail": "due_date must be a future date. Provided: 2020-01-01"
+}
+```
+
+This helps Orca AI understand the constraint and potentially re-try with corrected parameters.
+
+---
+
+## Timeout
+
+If your app doesn't respond within **30 seconds**, Orceum cancels the call, and the user receives:
+
+```
+Todo Manager didn't respond in time. Try again or contact support.
+```
+
+For long-running operations, return immediately and process asynchronously. Push a webhook event when complete. See [Handling Actions → Long-running operations](/building-apps/handling-actions#for-long-running-operations).

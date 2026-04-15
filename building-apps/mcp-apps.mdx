@@ -1,0 +1,207 @@
+---
+title: "MCP Apps"
+description: "Build apps that expose tools to Orceum via the Model Context Protocol"
+---
+
+MCP (Model Context Protocol) apps connect Orceum to external tool servers. Instead of defining actions in a manifest, your MCP server exposes a dynamic list of tools that Orceum discovers automatically.
+
+<Note>
+MCP apps use a different registration endpoint (`/v1/apps/mcp`) and execution model compared to native apps. Authentication support is limited to `NONE` and `OAUTH` — `API_KEY` is not supported for MCP.
+</Note>
+
+---
+
+## How MCP Apps Work
+
+```
+User asks Orca AI to do something
+        │
+        ▼
+Orceum contacts your MCP server
+        │
+        ├─→ list_tools()     → discover available tools
+        └─→ call_tool(name, args) → execute a tool
+
+MCP server returns result → Orca AI summarizes to user
+```
+
+1. Orceum sends `list_tools()` to your MCP server to discover available tools
+2. Based on tool descriptions, Orca AI selects the appropriate tool
+3. Orceum calls `call_tool(tool_name, arguments)` on your server
+4. The result is returned to Orca AI, which summarizes it for the user
+
+---
+
+## Registering an MCP App
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/mcp \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "GitHub Tools",
+    "description": "Create issues, review PRs, and search GitHub repositories",
+    "auth_type": "OAUTH",
+    "mcp_server_url": "https://mcp.yourtool.com/mcp",
+    "transport": "STREAMABLE_HTTP",
+    "config": {
+      "oauth_config": {
+        "client_id": "your_github_client_id",
+        "client_secret": "your_github_client_secret",
+        "authorization_url": "https://github.com/login/oauth/authorize",
+        "token_url": "https://github.com/login/oauth/access_token",
+        "scopes": ["repo", "read:user"]
+      }
+    }
+  }'
+```
+
+---
+
+## Transport Types
+
+<ParamField body="transport" type="string" required>
+  The MCP transport protocol your server uses.
+</ParamField>
+
+| Transport | Description | Use When |
+|-----------|-------------|----------|
+| `STREAMABLE_HTTP` | Modern HTTP-based MCP transport. Recommended. | New MCP servers |
+| `SSE` | Server-Sent Events transport (legacy). | Compatibility with older MCP servers |
+
+---
+
+## Tool Discovery
+
+Orceum discovers your tools at different times depending on your `auth_type`:
+
+| Auth Type | When Tools Are Discovered |
+|-----------|--------------------------|
+| `NONE` | Immediately after registration |
+| `OAUTH` | After the first user installs your app (OAuth tokens needed to call `list_tools`) |
+
+### Auto-Generated Manifest
+
+After discovery, Orceum auto-generates a manifest from your tool descriptions. The quality of tool descriptions directly affects how well Orca AI selects and uses your tools. Write tool descriptions as if explaining to a non-technical user what the tool does.
+
+### Regenerating the Manifest
+
+If you add, remove, or update tools on your MCP server, trigger a manifest refresh:
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN"
+```
+
+```json
+{
+  "status": "ok",
+  "tools_discovered": 8,
+  "manifest_updated_at": "2024-01-15T12:00:00Z"
+}
+```
+
+---
+
+## Authentication
+
+MCP apps support two auth types:
+
+<Tabs>
+  <Tab title="NONE">
+    Your MCP server is publicly accessible (or uses its own internal auth). Orceum makes unauthenticated requests to your server.
+
+    ```json
+    {
+      "auth_type": "NONE"
+    }
+    ```
+  </Tab>
+  <Tab title="OAUTH">
+    Users go through an OAuth flow on first install. Orceum injects the access token into MCP requests as a Bearer token.
+
+    ```json
+    {
+      "auth_type": "OAUTH",
+      "config": {
+        "oauth_config": {
+          "authorization_url": "https://provider.com/oauth/authorize",
+          "token_url": "https://provider.com/oauth/token",
+          "client_id": "...",
+          "client_secret": "...",
+          "scopes": ["..."]
+        }
+      }
+    }
+    ```
+
+    Orceum automatically handles token refresh before calling your MCP server.
+  </Tab>
+</Tabs>
+
+---
+
+## Building an MCP Server
+
+Here's a minimal FastMCP server to get you started:
+
+```python
+from fastmcp import FastMCP
+
+mcp = FastMCP("GitHub Tools")
+
+@mcp.tool()
+def create_issue(
+    repo: str,
+    title: str,
+    body: str = ""
+) -> dict:
+    """
+    Create a new GitHub issue in a repository.
+
+    Args:
+        repo: Repository in 'owner/repo' format, e.g. 'acme/todo-app'
+        title: Issue title
+        body: Issue description (optional)
+    """
+    # Your implementation here
+    return {"issue_number": 42, "url": f"https://github.com/{repo}/issues/42"}
+
+@mcp.tool()
+def list_open_issues(repo: str, limit: int = 10) -> list:
+    """
+    List open issues in a GitHub repository.
+
+    Args:
+        repo: Repository in 'owner/repo' format
+        limit: Maximum number of issues to return (1-100)
+    """
+    # Your implementation here
+    return [{"number": 1, "title": "Bug: login fails"}]
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)
+```
+
+<Tip>
+Write clear, specific docstrings for each tool. Orca AI reads these to decide when and how to call your tools. Vague descriptions lead to poor tool selection.
+</Tip>
+
+---
+
+## Checklist
+
+<AccordionGroup>
+  <Accordion title="Before registering">
+    - MCP server is deployed and publicly accessible
+    - Transport type confirmed (`STREAMABLE_HTTP` or `SSE`)
+    - Tool docstrings are clear and specific
+    - OAuth credentials ready (if using OAUTH auth)
+  </Accordion>
+  <Accordion title="After registering">
+    - Save `app_id` for future API calls
+    - Register Orceum's OAuth redirect URI with your provider (if using OAUTH)
+    - Verify tool discovery succeeded
+    - Test a tool call end-to-end
+  </Accordion>
+</AccordionGroup>

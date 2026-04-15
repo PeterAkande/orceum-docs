@@ -1,0 +1,176 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for Orceum app developers"
+---
+
+<AccordionGroup>
+  <Accordion title="My app returns 200 but Orca AI says it failed">
+    **Cause:** Your response body is not in the expected format.
+
+    **Fix:** Ensure you return `{ "result": ... }` at the top level:
+    ```json
+    // ❌ Wrong
+    {"task_id": "abc", "status": "created"}
+
+    // ✅ Correct
+    {"result": {"task_id": "abc", "status": "created"}}
+    ```
+  </Accordion>
+
+  <Accordion title="Webhook signature verification always fails">
+    **Possible causes:**
+    1. Wrong secret — confirm you're using the `orc_*` secret for lifecycle webhooks and `whs_*` for outgoing events
+    2. Pretty-printed body — signature is computed over the **raw bytes** of the request body, not a re-serialized version
+    3. Middleware modifying the body before it reaches your handler
+
+    **Fix:**
+    - Parse the raw body bytes before JSON-decoding for signature verification
+    - Use `hmac.compare_digest` not `==`
+    - Log both the provided and expected signatures (hex) during debugging
+  </Accordion>
+
+  <Accordion title="OAuth installation completes but tokens aren't being refreshed">
+    **Cause:** Your OAuth provider requires `access_type: offline` or a specific parameter to return a refresh token.
+
+    **Fix for Google:**
+    ```json
+    "additional_auth_params": {
+      "access_type": "offline",
+      "prompt": "consent"
+    }
+    ```
+    Without `prompt: consent`, Google only returns a refresh token on the *first* authorization. If the user has already authorized, subsequent installs won't include a refresh token.
+  </Accordion>
+
+  <Accordion title="X-Orceum-Installation-Id is not reaching my handler">
+    **Cause:** Header parsing issue — header names are lowercased in HTTP/2.
+
+    **Fix (FastAPI):**
+    ```python
+    from fastapi import Header
+    from typing import Optional
+
+    async def handle(x_orceum_installation_id: Optional[str] = Header(None)):
+        ...
+    ```
+    FastAPI converts `X-Orceum-Installation-Id` → `x_orceum_installation_id` automatically.
+  </Accordion>
+
+  <Accordion title="My MCP tools are not being discovered">
+    **Possible causes:**
+    1. Server not publicly reachable at `mcp_server_url`
+    2. Wrong `transport` type specified (`STREAMABLE_HTTP` vs `SSE`)
+    3. Using `OAUTH` auth — tool discovery happens after the first user installs
+
+    **Fix:**
+    - Test your MCP endpoint directly with an MCP client
+    - Try triggering `POST /v1/apps/{app_id}/regenerate-manifest`
+    - Check that your server returns a valid tool list on `list_tools()`
+  </Accordion>
+
+  <Accordion title="Actions are being called but the wrong user's data is returned">
+    **Cause:** Not using `X-Orceum-Installation-Id` to scope the operation.
+
+    **Fix:** Every action must look up the correct user by `installation_id`:
+    ```python
+    user = await db.get_user_by_installation_id(x_orceum_installation_id)
+    ```
+    Never use a global or shared account. Each installation is a separate user.
+  </Accordion>
+
+  <Accordion title="Orca AI ignores my app even for obvious queries">
+    **Cause:** Action descriptions are too vague or don't include trigger phrases.
+
+    **Fix:** Rewrite descriptions to include *when* to use the action:
+    ```json
+    // ❌ Vague
+    "description": "Creates a task"
+
+    // ✅ Clear trigger
+    "description": "Create a new task or to-do item. Use when the user wants to add work to their list, set a reminder, or track something they need to do."
+    ```
+    Also update `app_summary` in `config` to describe *when* users should use the app.
+  </Accordion>
+
+  <Accordion title="Installation completes with next_action: NONE but no INSTALLED webhook received">
+    **Cause:** Your `installation_webhook_url` is unreachable, or the URL is misconfigured.
+
+    **Fix:**
+    1. Confirm `config.installation_webhook_url` is set and HTTPS
+    2. Check your server logs for incoming POSTs
+    3. Use `ngrok` or similar during local development to expose your server
+  </Accordion>
+
+  <Accordion title="Getting 401 on action calls despite a valid API key">
+    **Cause (most common):** Your server is validating the `Authorization` header, but your `auth_config` is using a different header name.
+
+    **Fix:** Check your `auth_config`:
+    ```json
+    {
+      "auth_header_key": "Authorization",
+      "authentication_scheme": "Bearer"
+    }
+    ```
+    This produces: `Authorization: Bearer <key>`. If your server expects `X-API-Key: <key>`, update `auth_header_key` to `X-API-Key` and clear `authentication_scheme`.
+  </Accordion>
+
+  <Accordion title="Orceum times out before my action completes">
+    **Cause:** Your action is processing synchronously and takes >30 seconds.
+
+    **Fix:** Return immediately with a job reference, process async, push a webhook when done:
+    ```python
+    @app.post("/actions")
+    async def handle(request: Request):
+        body = await request.json()
+        if body["event"] == "export_data":
+            job_id = await enqueue_export(body["event_data"])
+            return {"result": {
+                "status": "processing",
+                "job_id": job_id,
+                "message": "Export started. I'll notify you when it's ready."
+            }}
+    ```
+  </Accordion>
+
+  <Accordion title="Pushed a webhook event but action_taken is IGNORED">
+    **Cause:** The event was filtered by Orceum's bouncer (priority too low, quiet hours, or user preferences).
+
+    **Fix:**
+    - Increase the `priority` field: `high` or `critical` are harder to ignore
+    - Ensure `events_enabled: true` in `webhook_config`
+    - Verify the `installation_id` is correct and the installation is `ACTIVE`
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Quick Diagnostics
+
+```bash
+# Check app status
+curl https://api.orceum.com/v1/apps/{app_id} \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Check installation status  
+curl https://api.orceum.com/v1/apps/{app_id}/installations/{installation_id} \
+  -H "Authorization: Bearer USER_TOKEN"
+
+# Verify webhook endpoint is reachable
+curl https://api.orceum.com/v1/apps/{app_id}/events/verify \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Trigger MCP manifest refresh
+curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+---
+
+## Getting Help
+
+If you're still stuck after checking the above:
+
+- Check the [Security](/concepts/security) page for signature verification examples
+- Review the [Error Handling](/building-apps/error-handling) page for status code behavior
+- Open an issue in the [Orceum GitHub repo](https://github.com/orceum)
+- Join the [Discord community](https://discord.gg/orceum)

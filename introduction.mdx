@@ -1,0 +1,79 @@
+---
+title: "Introduction"
+description: "Build powerful AI-native integrations on the Orceum platform"
+---
+
+# Welcome to Orceum
+
+Orceum is an AI-first productivity platform. When users talk to Orceum's AI agent, they can ask it to **do things** — send emails, create calendar events, search Slack, manage tasks — by triggering apps you've built.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="bolt" href="/quickstart">
+    Build and register your first app in minutes
+  </Card>
+  <Card title="App Types" icon="grid-2" href="/building-apps/overview">
+    Native HTTP, MCP, and more — choose the right model
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/building-apps/webhooks">
+    Push real-time events from your app to Orceum
+  </Card>
+  <Card title="OAuth Guide" icon="key" href="/configuration/oauth">
+    Full OAuth 2.0 with PKCE, DCR, and token management
+  </Card>
+</CardGroup>
+
+---
+
+## How It Works
+
+```
+User: "Send an email to Sarah about tomorrow's meeting"
+        ↓
+Orceum AI identifies the right app + action + parameters
+        ↓
+Execution Engine resolves the user's installation → decrypts credentials → calls your app
+        ↓
+Your app executes the action and returns the result
+        ↓
+AI reports back to the user
+```
+
+Orceum handles everything between the user's intent and your app's action:
+- **Intent parsing** — the AI extracts the right action and parameters from natural language
+- **Credential management** — tokens and API keys are encrypted at rest and injected at call time
+- **Error recovery** — 401s trigger token refreshes, 429s trigger retries
+- **Event routing** — your app can push events back; Orceum's AI decides what to do with them
+
+---
+
+## The Developer Contract
+
+As an app developer, you need to:
+
+<Steps>
+  <Step title="Define your manifest">
+    Describe what your app can do — actions, parameters, and descriptions the AI will read.
+  </Step>
+  <Step title="Register your app">
+    Call the Orceum API once to register your endpoint, auth config, and manifest.
+  </Step>
+  <Step title="Handle action calls">
+    Receive `POST` requests from Orceum with `{ event, event_data, timestamp }` and return a JSON result.
+  </Step>
+  <Step title="Optionally push events">
+    When something happens in your service (new email, calendar update), push it to Orceum. The AI takes it from there.
+  </Step>
+</Steps>
+
+---
+
+## App Types at a Glance
+
+| Type | Transport | Best For |
+|------|-----------|----------|
+| **Native** | HTTPS POST | Any HTTP API you control |
+| **MCP** | MCP Protocol (SSE / Streamable HTTP) | Tool servers implementing the Model Context Protocol |
+
+<Note>
+System and Skill app types are internal to Orceum and not available for third-party developers.
+</Note>

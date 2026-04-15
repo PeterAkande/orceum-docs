@@ -1,0 +1,158 @@
+---
+title: "Registering Your App"
+description: "Create a native or MCP app on Orceum to get your app ID and webhook secret"
+---
+
+Registration creates your app's identity on Orceum. You'll receive an `app_id` (needed for all subsequent API calls) and an `orceum_webhook_secret` (used to sign the lifecycle webhooks Orceum sends to you).
+
+---
+
+<Note>
+Save your `orceum_webhook_secret` immediately after registration. It is only shown once. This is different from the `whs_*` token used for signing the events you *receive* — see [Webhooks](/building-apps/webhooks).
+</Note>
+
+---
+
+## Native App
+
+POST to `/v1/apps/` with your full manifest:
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/ \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Todo Manager",
+    "description": "Manage tasks and reminders for users",
+    "app_type": "NATIVE",
+    "auth_type": "API_KEY",
+    "base_url": "https://todo.yourapp.com",
+    "actions": [
+      {
+        "name": "create_task",
+        "description": "Create a new task for the user",
+        "endpoint": "/actions",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "title",
+            "type": "string",
+            "description": "The task title",
+            "required": true
+          },
+          {
+            "name": "due_date",
+            "type": "string",
+            "description": "ISO 8601 due date, e.g. 2024-12-31",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "config": {
+      "auth_config": {
+        "auth_header_key": "Authorization",
+        "authentication_scheme": "Bearer"
+      },
+      "webhook_config": {
+        "webhook_url": "https://todo.yourapp.com/webhooks/orceum",
+        "webhook_secret": "whs_your_secret"
+      }
+    }
+  }'
+```
+
+### Response
+
+```json
+{
+  "app_id": "app_a1b2c3d4e5f6g7h8i9j0",
+  "name": "Todo Manager",
+  "app_type": "NATIVE",
+  "auth_type": "API_KEY",
+  "status": "PENDING",
+  "orceum_webhook_secret": "orc_sk_AbC123...",
+  "created_at": "2024-01-15T12:00:00Z"
+}
+```
+
+<Warning>
+**Save `orceum_webhook_secret` now.** This `orc_*` secret is shown only once and is used to verify lifecycle webhooks (INSTALLED / UNINSTALLED) that Orceum sends to your `installation_webhook_url`. More in [Lifecycle Webhooks](/building-apps/lifecycle-webhooks).
+</Warning>
+
+---
+
+## MCP App
+
+For apps that expose tools via the Model Context Protocol, use the `/v1/apps/mcp` endpoint:
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/mcp \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "GitHub Tools",
+    "description": "Create issues, PRs, and review code on GitHub",
+    "auth_type": "OAUTH",
+    "mcp_server_url": "https://mcp.yourtool.com/mcp",
+    "transport": "STREAMABLE_HTTP",
+    "config": {
+      "oauth_config": { "..." : "..." }
+    }
+  }'
+```
+
+Orceum will connect to your MCP server, discover tools, and auto-generate the manifest. See [MCP Apps](/building-apps/mcp-apps) for the full setup guide.
+
+---
+
+## Required Fields
+
+<ParamField body="name" type="string" required>
+  Display name of your app. Shown to users in the marketplace and conversation UI.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  A concise, user-facing description. Also used by Orca AI to understand what your app does.
+</ParamField>
+
+<ParamField body="app_type" type="string" required>
+  `NATIVE` or `MCP`. Determines which registration endpoint and execution model to use.
+</ParamField>
+
+<ParamField body="auth_type" type="string" required>
+  `NONE`, `API_KEY`, or `OAUTH`. See [Authentication](/building-apps/authentication).
+</ParamField>
+
+<ParamField body="base_url" type="string" required>
+  *(Native only)* Base URL for all action calls, e.g. `https://api.yourapp.com`
+</ParamField>
+
+<ParamField body="mcp_server_url" type="string" required>
+  *(MCP only)* URL of your MCP server endpoint.
+</ParamField>
+
+<ParamField body="actions" type="array" required>
+  *(Native only)* List of actions your app supports. See [Defining Your Manifest](/building-apps/manifest).
+</ParamField>
+
+---
+
+## After Registration
+
+1. Note your `app_id` — used in all subsequent API calls
+2. Save your `orceum_webhook_secret` (shown once)
+3. Register the OAuth redirect URI with your provider (if using OAuth):
+   ```
+   https://api.orceum.com/v1/apps/{app_id}/oauth/callback
+   ```
+4. Your app starts in `PENDING` state — [publish it](/configuration/marketplace) to make it discoverable
+
+<CardGroup cols={2}>
+  <Card title="Installation Flow" icon="arrow-right" href="/building-apps/installation">
+    How users install your app and grant credentials
+  </Card>
+  <Card title="Publishing Your App" icon="store" href="/configuration/marketplace">
+    Move from PENDING to ACTIVE for marketplace listing
+  </Card>
+</CardGroup>

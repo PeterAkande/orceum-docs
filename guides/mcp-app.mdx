@@ -1,0 +1,233 @@
+---
+title: "Guide: Build an MCP App"
+description: "Build and register an MCP tool server that Orceum can discover and execute"
+---
+
+This guide walks you through building a GitHub MCP app using FastMCP and registering it with Orceum using OAuth authentication.
+
+---
+
+## What We're Building
+
+An MCP server that:
+- Exposes GitHub tools (`create_issue`, `list_issues`, `search_repos`)
+- Uses GitHub OAuth for per-user authentication
+- Auto-discovers tools via Orceum's MCP integration
+
+---
+
+## Step 1: Build Your MCP Server
+
+Install FastMCP:
+
+```bash
+pip install fastmcp httpx
+```
+
+```python
+# server.py
+from fastmcp import FastMCP
+import httpx
+import os
+
+mcp = FastMCP("GitHub Tools")
+
+# In a real app, get the token from the request context
+# FastMCP handles OAuth token injection per-request
+GITHUB_API = "https://api.github.com"
+
+
+@mcp.tool()
+async def create_issue(
+    repo: str,
+    title: str,
+    body: str = "",
+    labels: list[str] = []
+) -> dict:
+    """
+    Create a new GitHub issue in a repository.
+
+    Use when the user wants to report a bug, request a feature, or track work
+    in a specific GitHub repository.
+
+    Args:
+        repo: Repository in 'owner/repo' format, e.g. 'acme/todo-app'
+        title: Short, descriptive issue title
+        body: Detailed description of the issue (optional)
+        labels: List of label names to apply, e.g. ['bug', 'high-priority']
+    """
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{GITHUB_API}/repos/{repo}/issues",
+            json={"title": title, "body": body, "labels": labels},
+            headers={"Authorization": f"Bearer {get_token()}"}
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return {
+            "issue_number": data["number"],
+            "url": data["html_url"],
+            "title": data["title"],
+            "status": "created"
+        }
+
+
+@mcp.tool()
+async def list_issues(
+    repo: str,
+    state: str = "open",
+    limit: int = 10
+) -> list:
+    """
+    List issues in a GitHub repository.
+
+    Use when the user wants to see open bugs, check pending work, or review
+    issues in a repository.
+
+    Args:
+        repo: Repository in 'owner/repo' format
+        state: Filter by issue state: 'open', 'closed', or 'all'. Default: 'open'
+        limit: Maximum number of issues to return (1–50). Default: 10
+    """
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{GITHUB_API}/repos/{repo}/issues",
+            params={"state": state, "per_page": min(limit, 50)},
+            headers={"Authorization": f"Bearer {get_token()}"}
+        )
+        resp.raise_for_status()
+        issues = resp.json()
+        return [
+            {"number": i["number"], "title": i["title"], "url": i["html_url"]}
+            for i in issues
+        ]
+
+
+@mcp.tool()
+async def search_repos(query: str, limit: int = 5) -> list:
+    """
+    Search for GitHub repositories matching a query.
+
+    Use when the user wants to find repositories by name, topic, or description.
+
+    Args:
+        query: Search keywords, e.g. 'fastapi authentication python'
+        limit: Number of results to return (1–20). Default: 5
+    """
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{GITHUB_API}/search/repositories",
+            params={"q": query, "per_page": min(limit, 20)},
+            headers={"Authorization": f"Bearer {get_token()}"}
+        )
+        resp.raise_for_status()
+        return [
+            {
+                "name": r["full_name"],
+                "description": r["description"],
+                "stars": r["stargazers_count"],
+                "url": r["html_url"]
+            }
+            for r in resp.json()["items"]
+        ]
+
+
+def get_token():
+    # In production: extract from request context (Orceum injects it)
+    return os.environ.get("GITHUB_TOKEN", "")
+
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)
+```
+
+---
+
+## Step 2: Deploy Your MCP Server
+
+Your MCP server needs to be publicly accessible. Deploy it to any cloud provider:
+
+```bash
+# Example: deploy to Railway
+railway up
+
+# Your server URL will be something like:
+# https://github-mcp.up.railway.app/mcp
+```
+
+---
+
+## Step 3: Register with Orceum
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/mcp \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "GitHub Tools",
+    "description": "Create issues, list open work, and search repositories on GitHub",
+    "auth_type": "OAUTH",
+    "mcp_server_url": "https://github-mcp.up.railway.app/mcp",
+    "transport": "STREAMABLE_HTTP",
+    "config": {
+      "oauth_config": {
+        "client_id": "YOUR_GITHUB_CLIENT_ID",
+        "client_secret": "YOUR_GITHUB_CLIENT_SECRET",
+        "authorization_url": "https://github.com/login/oauth/authorize",
+        "token_url": "https://github.com/login/oauth/access_token",
+        "scopes": ["repo", "read:user"],
+        "client_redirect_uris": [
+          "https://api.orceum.com/v1/apps/APP_ID_PLACEHOLDER/oauth/callback"
+        ]
+      }
+    }
+  }'
+```
+
+From the response, note your `app_id` and update the `client_redirect_uris` with the real ID. Also register the callback URI in your GitHub OAuth App settings.
+
+---
+
+## Step 4: Verify Tool Discovery
+
+After registration, Orceum will attempt to connect to your MCP server and run `list_tools()`. Check the result:
+
+```bash
+curl https://api.orceum.com/v1/apps/{app_id} \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN"
+```
+
+Look for `tools_discovered` in the response. If it's `0`, check that your server is reachable.
+
+---
+
+## Step 5: Test It
+
+Install the app as a user and try it in Orca AI:
+
+> *"Find Python web framework repositories on GitHub"*
+
+> *"Create an issue in acme/backend titled 'Fix login timeout'"*
+
+---
+
+## Updating Your Tools
+
+When you add or modify tools, trigger a manifest refresh:
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN"
+```
+
+---
+
+## Key Differences from Native Apps
+
+| Aspect | Native | MCP |
+|--------|--------|-----|
+| Registration | `POST /v1/apps/` | `POST /v1/apps/mcp` |
+| Actions defined | In manifest JSON | Via `list_tools()` |
+| Execution | `POST base_url + endpoint` | `call_tool(name, args)` |
+| Auth support | NONE, API_KEY, OAUTH | NONE, OAUTH only |
+| Manifest updates | Manual PATCH | `POST regenerate-manifest` |

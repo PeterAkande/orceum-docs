@@ -1,0 +1,261 @@
+---
+title: "Guide: Build a Native App"
+description: "End-to-end walkthrough — build, register, install, and test a Todo Manager native app"
+---
+
+This guide walks you through building a complete native app on Orceum from scratch. We'll build a **Todo Manager** that lets users create and list tasks via Orca AI.
+
+---
+
+## What We're Building
+
+A FastAPI app that:
+- Accepts action calls from Orceum (`create_task`, `list_tasks`, `delete_task`)
+- Receives an API key per user (injected automatically by Orceum)
+- Sends lifecycle webhook events on install/uninstall
+- Pushes a webhook event when a background job completes
+
+---
+
+## Step 1: Plan Your App
+
+Before writing code, define the actions your app will support:
+
+| Action | Description | Parameters |
+|--------|-------------|-----------|
+| `create_task` | Create a new task | `title` (required), `due_date`, `priority` |
+| `list_tasks` | List the user's tasks | `status` filter, `limit` |
+| `delete_task` | Delete a task by ID | `task_id` (required) |
+
+---
+
+## Step 2: Build Your App
+
+```python
+# main.py
+from fastapi import FastAPI, Request, Header, HTTPException
+from typing import Optional
+from datetime import datetime
+import uuid
+
+app = FastAPI(title="Todo Manager")
+
+# Simple in-memory store (use a real DB in production)
+task_store: dict[str, list] = {}
+
+@app.post("/actions")
+async def handle_action(
+    request: Request,
+    x_orceum_installation_id: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None)
+):
+    if not x_orceum_installation_id:
+        raise HTTPException(status_code=400, detail="Missing X-Orceum-Installation-Id")
+
+    body = await request.json()
+    event = body.get("event")
+    event_data = body.get("event_data", {})
+    installation_id = x_orceum_installation_id
+
+    if event == "create_task":
+        return await handle_create_task(installation_id, event_data)
+    elif event == "list_tasks":
+        return await handle_list_tasks(installation_id, event_data)
+    elif event == "delete_task":
+        return await handle_delete_task(installation_id, event_data)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown action: {event}")
+
+
+async def handle_create_task(installation_id: str, data: dict) -> dict:
+    title = data.get("title")
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+
+    task = {
+        "task_id": str(uuid.uuid4())[:8],
+        "title": title,
+        "due_date": data.get("due_date"),
+        "priority": data.get("priority", "normal"),
+        "status": "open",
+        "created_at": datetime.utcnow().isoformat()
+    }
+    task_store.setdefault(installation_id, []).append(task)
+    return {"result": task}
+
+
+async def handle_list_tasks(installation_id: str, data: dict) -> dict:
+    tasks = task_store.get(installation_id, [])
+    status_filter = data.get("status")
+    if status_filter:
+        tasks = [t for t in tasks if t["status"] == status_filter]
+    limit = data.get("limit", 10)
+    return {"result": {"tasks": tasks[:limit], "total": len(tasks)}}
+
+
+async def handle_delete_task(installation_id: str, data: dict) -> dict:
+    task_id = data.get("task_id")
+    if not task_id:
+        raise HTTPException(status_code=400, detail="task_id is required")
+    tasks = task_store.get(installation_id, [])
+    original_count = len(tasks)
+    task_store[installation_id] = [t for t in tasks if t["task_id"] != task_id]
+    if len(task_store[installation_id]) == original_count:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    return {"result": {"deleted": True, "task_id": task_id}}
+```
+
+---
+
+## Step 3: Handle Lifecycle Webhooks
+
+```python
+# webhooks.py
+import hmac
+import hashlib
+from fastapi import APIRouter, Request, Header, HTTPException
+from typing import Optional
+
+router = APIRouter()
+
+ORCEUM_WEBHOOK_SECRET = "orc_sk_your_secret_from_registration"
+
+@router.post("/webhooks/lifecycle")
+async def lifecycle_webhook(
+    request: Request,
+    x_orceum_signature: Optional[str] = Header(None)
+):
+    body = await request.body()
+
+    if not x_orceum_signature:
+        raise HTTPException(status_code=401, detail="Missing signature")
+
+    provided_sig = x_orceum_signature.removeprefix("sha256=")
+    expected_sig = hmac.new(
+        ORCEUM_WEBHOOK_SECRET.encode(),
+        body,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(provided_sig, expected_sig):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    payload = await request.json()
+    event = payload["event"]
+
+    if event == "INSTALLED":
+        installation_id = payload["installation_id"]
+        user_email = payload["user_email"]
+        # In production: store installation_id → user mapping in your DB
+        task_store[installation_id] = []
+        print(f"New install: {installation_id} for {user_email}")
+
+    elif event == "UNINSTALLED":
+        installation_id = payload["installation_id"]
+        task_store.pop(installation_id, None)
+        print(f"Uninstalled: {installation_id}")
+
+    return {"status": "ok"}
+```
+
+---
+
+## Step 4: Register Your App
+
+```bash
+curl -X POST https://api.orceum.com/v1/apps/ \
+  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Todo Manager",
+    "description": "Manage your tasks and reminders. Create, list, and delete todos with natural language.",
+    "app_type": "NATIVE",
+    "auth_type": "API_KEY",
+    "base_url": "https://todo.yourapp.com",
+    "actions": [
+      {
+        "name": "create_task",
+        "description": "Create a new task or to-do item. Use when the user wants to add something to their task list, set a reminder, or track a piece of work.",
+        "endpoint": "/actions",
+        "method": "POST",
+        "parameters": [
+          {"name": "title", "type": "string", "description": "The task title — what needs to be done", "required": true},
+          {"name": "due_date", "type": "string", "description": "Due date in YYYY-MM-DD format. Optional.", "required": false},
+          {"name": "priority", "type": "string", "description": "Priority level: low, normal, high, urgent", "required": false}
+        ]
+      },
+      {
+        "name": "list_tasks",
+        "description": "List the user'\''s tasks. Use when the user asks what they have to do, wants to see their todo list, or checks on pending work.",
+        "endpoint": "/actions",
+        "method": "POST",
+        "parameters": [
+          {"name": "status", "type": "string", "description": "Filter by status: open, completed, all. Default is open.", "required": false},
+          {"name": "limit", "type": "integer", "description": "Max tasks to return. Default 10.", "required": false}
+        ]
+      },
+      {
+        "name": "delete_task",
+        "description": "Delete or remove a task from the user'\''s list. Requires the task_id from a previous list_tasks call.",
+        "endpoint": "/actions",
+        "method": "POST",
+        "parameters": [
+          {"name": "task_id", "type": "string", "description": "The ID of the task to delete", "required": true}
+        ]
+      }
+    ],
+    "config": {
+      "auth_config": {
+        "auth_header_key": "Authorization",
+        "authentication_scheme": "Bearer"
+      },
+      "installation_webhook_url": "https://todo.yourapp.com/webhooks/lifecycle",
+      "webhook_config": {
+        "events_enabled": true,
+        "webhook_secret": "whs_your_generated_secret"
+      },
+      "api_key_instructions": "Go to your Todo app account → Settings → API → Generate Key",
+      "api_key_format_hint": "Starts with sk- and is 40 characters long"
+    }
+  }'
+```
+
+**Save the response:**
+```json
+{
+  "app_id": "app_a1b2c3d4",
+  "orceum_webhook_secret": "orc_sk_AbC123..."
+}
+```
+
+---
+
+## Step 5: Install and Test
+
+```bash
+# Install the app as a user
+curl -X POST https://api.orceum.com/v1/apps/app_a1b2c3d4/install \
+  -H "Authorization: Bearer USER_TOKEN"
+
+# Response: next_action = API_KEY — submit the key
+curl -X POST https://api.orceum.com/v1/apps/app_a1b2c3d4/installations/inst_abc123/api-key \
+  -H "Authorization: Bearer USER_TOKEN" \
+  -d '{"api_key": "sk-myapikey123"}'
+
+# Now test via an action call (or through Orca AI)
+```
+
+Now open Orca AI and say: *"Add a task: review the Q4 budget by Friday"*
+
+Orca AI will call `create_task` on your app, receive the result, and respond: *"Done — I've added 'Review the Q4 budget' to your list, due Friday."*
+
+---
+
+## Checklist
+
+- [ ] Action handler routes on `event` field
+- [ ] `X-Orceum-Installation-Id` extracted and used for user isolation
+- [ ] Lifecycle webhook handler signature verification implemented
+- [ ] `orc_*` secret stored in secrets manager
+- [ ] HTTPS on `base_url` and webhook URLs
+- [ ] Test action calls manually before publishing

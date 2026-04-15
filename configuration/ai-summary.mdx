@@ -1,0 +1,136 @@
+---
+title: "AI Summary & Discoverability"
+description: "Configure how Orca AI describes and discovers your app — for users and for the AI agent"
+---
+
+Orceum uses multiple text fields to determine when to suggest your app, how to describe it to users, and what to tell the AI model before executing actions. Getting these right is critical for your app to be discovered and used correctly.
+
+---
+
+## Two Audiences, Two Fields
+
+| Field | Audience | Purpose |
+|-------|----------|---------|
+| `description` | **Users** | Shown in the marketplace and UI — what users read |
+| `app_summary` | **Orca AI** | Injected into the AI prompt — what the model reads before deciding to use your app |
+
+---
+
+## `description` — User-Facing
+
+The `description` is shown to users in the Orceum marketplace, installation screens, and conversation surfaces. Write it as you would an app store listing:
+
+```json
+{
+  "description": "Manage your tasks and reminders. Create, update, and track todos with natural language — just tell Orca what you need done."
+}
+```
+
+**Guidelines:**
+- 1-3 sentences max
+- Focus on what the user can *do* with your app
+- Use plain language — no jargon
+- Mention the service by name (e.g. "Sync with Todoist", "Manage Notion pages")
+
+---
+
+## `app_summary` — AI-Facing
+
+The `app_summary` is injected into Orca AI's system prompt when evaluating whether to use your app and when constructing the execution context. This is *not* shown to users.
+
+```json
+{
+  "app_summary": "A task management app for creating, listing, updating, and deleting todo items. Best used when the user wants to track work, set reminders, or organize their schedule. Each task has a title, optional due date, priority level, and completion state. The installation_id in each request identifies which user's task list to operate on."
+}
+```
+
+**Guidelines:**
+- Describe what your app does in operational terms
+- List the key entities it manages (tasks, events, documents, etc.)
+- Explain when it should be used vs. when it should *not* be
+- Mention any important conventions (e.g. "priority is 1-5", "dates are UTC")
+
+<Tip>
+Think of `app_summary` as the briefing you give a new employee before they start using your app. What do they need to know to use it correctly?
+</Tip>
+
+---
+
+## Pre-Install Instructions
+
+Show users important information *before* they install your app. Use this for requirements, warnings, or setup steps:
+
+```json
+{
+  "config": {
+    "show_instruction_before_install": true,
+    "instruction_before_install": "To use this app, you need a Todoist Pro account. Go to todoist.com/app/settings/integrations to generate an API token — you'll need it during setup."
+  }
+}
+```
+
+<ParamField body="show_instruction_before_install" type="boolean" default="false">
+  If `true`, the installation UI shows `instruction_before_install` before the user clicks "Install".
+</ParamField>
+
+<ParamField body="instruction_before_install" type="string">
+  Plain text (or light Markdown) shown to users before they begin installation.
+
+  Use this for:
+  - Prerequisites ("Requires Admin role")
+  - Where to find credentials ("Go to Settings → API → Generate Key")
+  - Important warnings ("This app will have read/write access to all your files")
+  - Pricing notes ("Premium plan required")
+</ParamField>
+
+---
+
+## Improving AI Discoverability
+
+Orca AI discovers apps based on the user's intent. The better your descriptions, the more accurately the AI matches user requests to your app.
+
+### Action-Level Descriptions
+
+Each action's `description` in your manifest is equally important. Orca AI reads these to decide *which action* to call:
+
+<Tabs>
+  <Tab title="Too vague">
+    ```json
+    {
+      "name": "create_task",
+      "description": "Creates a task"
+    }
+    ```
+    This tells the AI nothing useful. When would it choose this over any other "create" action?
+  </Tab>
+  <Tab title="Clear and actionable">
+    ```json
+    {
+      "name": "create_task",
+      "description": "Create a new task or to-do item with an optional due date and priority. Use when the user wants to remember something, add to their task list, or set a reminder."
+    }
+    ```
+    Now the AI knows exactly when to call this action.
+  </Tab>
+</Tabs>
+
+### Parameter Descriptions
+
+Don't skip parameter descriptions:
+
+```json
+{
+  "name": "due_date",
+  "type": "string",
+  "description": "Due date in ISO 8601 format (YYYY-MM-DD), e.g. 2024-12-31. Leave empty for tasks with no deadline.",
+  "required": false
+}
+```
+
+### AI Description Checklist
+
+- [ ] `description` reads like an app store listing — what can the user do?
+- [ ] `app_summary` explains what entities your app manages and when to use it
+- [ ] Each action's `description` says *when* to call it, not just *what* it does
+- [ ] Parameter descriptions include format examples and valid ranges
+- [ ] `additional_usage_info` in `config` captures any runtime behavior the AI needs to know

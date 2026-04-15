@@ -21,7 +21,11 @@ jobs:
         run: npm install -g mintlify
 
       - name: Build docs export
-        run: mintlify build
+        run: |
+          mintlify export
+          rm -rf export/
+          unzip -o export.zip -d export/
+          rm export.zip
 
       - name: Commit updated export
         run: |

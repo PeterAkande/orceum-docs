@@ -1,79 +1,177 @@
 ---
 title: "Introduction"
-description: "Build powerful AI-native integrations on the Orceum platform"
+description: "Build apps on Orceum — the platform that turns AI assistants into teammates that actually do the work."
 ---
 
-# Welcome to Orceum
+# What is Orceum?
 
-Orceum is an AI-first productivity platform. When users talk to Orceum's AI agent, they can ask it to **do things** — send emails, create calendar events, search Slack, manage tasks — by triggering apps you've built.
+Think about how much time people waste on *work about work* — checking email, updating tasks, prepping for meetings, triaging Slack. Orceum takes that off their plate.
 
-<CardGroup cols={2}>
-  <Card title="Quick Start" icon="bolt" href="/quickstart">
-    Build and register your first app in minutes
-  </Card>
-  <Card title="App Types" icon="grid-2" href="/building-apps/overview">
-    Native HTTP, MCP, and more — choose the right model
-  </Card>
-  <Card title="Webhooks" icon="webhook" href="/building-apps/webhooks">
-    Push real-time events from your app to Orceum
-  </Card>
-  <Card title="OAuth Guide" icon="key" href="/configuration/oauth">
-    Full OAuth 2.0 with PKCE, DCR, and token management
-  </Card>
-</CardGroup>
+Orceum is a **platform for AI assistants that actually do things**. Think of it like iOS, but for work and personal AI agents. iOS doesn't make phone calls — apps do. iOS provides the runtime, the app store, the permissions model, and the APIs. Orceum does the same thing for AI assistants.
+
+On Orceum, an AI assistant plugs into the tools people already use — Gmail, Slack, Calendar, Linear, X — and **actually operates them**. Not just "here's a summary." It drafts the reply, creates the task, posts the tweet, flags the urgent thread, and preps the brief before the 2pm call.
+
+The key idea is **roles**. Users don't just chat with their assistant when they feel like it. They assign it standing responsibilities:
+
+- *"You're my inbox manager — triage my email every morning at 8am."*
+- *"You're my social media manager — draft posts from my notes every Tuesday."*
+- *"You're my meeting prep assistant — brief me 30 minutes before every call."*
+
+The assistant runs those responsibilities **on a schedule, without being asked**. That's what makes Orceum different from a chatbot wrapper.
+
+> **Notion** is where your work lives. **Zapier** connects your tools. **Orceum does the work.**
 
 ---
 
-## How It Works
+## Where you come in
 
+Here's the thing — the AI assistant is smart, but it doesn't have hands. It can't send an email by itself. It can't create a Linear ticket. It can't post to X.
+
+**Your app gives it hands.**
+
+When you build an app on Orceum, you're connecting a real-world tool (Gmail, Notion, your own SaaS product, anything with an API) to the platform. You tell Orceum: *"Here are the things I can do"* — and the assistant figures out when and how to call you.
+
+It's the same relationship as iOS and apps. The assistant is the user's agent. Orceum is the operating system. Your app is the capability.
+
+```mermaid
+flowchart LR
+    subgraph You build this
+        App["Your App"]
+    end
+
+    subgraph Orceum Platform
+        AI["AI Assistant"]
+        Engine["Execution Engine"]
+    end
+
+    subgraph User's world
+        Tool["Gmail / Slack / Linear / etc."]
+    end
+
+    AI -- "picks the right action" --> Engine
+    Engine -- "calls your app with credentials" --> App
+    App -- "does the thing" --> Tool
+
+    style AI fill:#e67e22,color:#fff,stroke:none
+    style App fill:#c55a3a,color:#fff,stroke:none
+    style Tool fill:#9b4628,color:#fff,stroke:none
 ```
-User: "Send an email to Sarah about tomorrow's meeting"
-        ↓
-Orceum AI identifies the right app + action + parameters
-        ↓
-Execution Engine resolves the user's installation → decrypts credentials → calls your app
-        ↓
-Your app executes the action and returns the result
-        ↓
-AI reports back to the user
-```
 
-Orceum handles everything between the user's intent and your app's action:
-- **Intent parsing** — the AI extracts the right action and parameters from natural language
-- **Credential management** — tokens and API keys are encrypted at rest and injected at call time
-- **Error recovery** — 401s trigger token refreshes, 429s trigger retries
-- **Event routing** — your app can push events back; Orceum's AI decides what to do with them
+You don't need to worry about:
+- Figuring out *what* the user wants — the assistant handles intent
+- Storing credentials — Orceum encrypts and injects them at call time
+- Retries, token refreshes, error recovery — Orceum handles that too
+- Deciding *when* to act — roles and schedules are the platform's job
+
+**You just build the bridge between Orceum and the tool.**
 
 ---
 
-## The Developer Contract
+## Two ways your app gets called
 
-As an app developer, you need to:
+### On demand — the user asks
+
+A user says something like *"Draft a reply to the investor email that came in this morning."* The assistant figures out which app to call, what action to use, and what parameters to send.
+
+```mermaid
+flowchart TD
+    A(["User asks their assistant something"])
+    B["Assistant identifies the right app + action"]
+    C["Orceum resolves credentials & calls your app"]
+    D["Your app does the thing"]
+    E(["Assistant reports back to the user"])
+
+    A --> B --> C --> D --> E
+
+    style A fill:#e67e22,color:#fff,stroke:none
+    style E fill:#c55a3a,color:#fff,stroke:none
+```
+
+### Proactive — a role runs on schedule
+
+No one asked. It's 8am. The user's "inbox manager" role wakes up. The assistant calls your Gmail app to pull unread emails, calls your Calendar app to check today's schedule, then compiles a morning brief.
+
+```mermaid
+flowchart TD
+    T(["8am — inbox manager role activates"])
+    G["Gmail app — surfaces unread emails"]
+    C["Calendar app — returns today's schedule"]
+    O["Assistant triages, summarises, flags action items"]
+    B(["User gets a morning brief — no prompt needed"])
+
+    T --> G & C --> O --> B
+
+    style T fill:#e67e22,color:#fff,stroke:none
+    style B fill:#c55a3a,color:#fff,stroke:none
+```
+
+In both cases, **your app does the same thing**: receive a request, do the work, return the result. Orceum handles everything else.
+
+---
+
+## What you actually build
+
+Building an app for Orceum is straightforward. There are four things to do:
 
 <Steps>
-  <Step title="Define your manifest">
-    Describe what your app can do — actions, parameters, and descriptions the AI will read.
+  <Step title="Write a manifest">
+    A manifest is a simple JSON description of what your app can do. You list your **actions** (like `send_email`, `create_task`, `get_unread`) along with their parameters and plain-English descriptions. Orceum reads this so the assistant understands your app's capabilities.
   </Step>
   <Step title="Register your app">
-    Call the Orceum API once to register your endpoint, auth config, and manifest.
+    One API call to Orceum. You send your app's endpoint URL, authentication config, and manifest. That's it — your app is now in the system.
   </Step>
   <Step title="Handle action calls">
-    Receive `POST` requests from Orceum with `{ event, event_data, timestamp }` and return a JSON result.
+    When the assistant decides to use your app, Orceum sends a `POST` request to your endpoint with a payload like:
+    ```json
+    {
+      "event": "send_email",
+      "event_data": {
+        "to": "investor@example.com",
+        "subject": "Re: Q2 Update",
+        "body": "Thanks for the note. Here's the latest..."
+      },
+      "timestamp": "2026-04-15T08:30:00Z"
+    }
+    ```
+    Your app executes the action and returns a JSON result. That's the core contract.
   </Step>
-  <Step title="Optionally push events">
-    When something happens in your service (new email, calendar update), push it to Orceum. The AI takes it from there.
+  <Step title="Push events (optional)">
+    Something happened on your end? New email arrived, calendar invite updated, task completed? Push an event to Orceum and the assistant will decide what to do with it — notify the user, update a brief, trigger another action. Your app doesn't need to figure out the "what next" — Orceum does.
   </Step>
 </Steps>
 
 ---
 
-## App Types at a Glance
+## Pick your app type
 
-| Type | Transport | Best For |
-|------|-----------|----------|
-| **Native** | HTTPS POST | Any HTTP API you control |
-| **MCP** | MCP Protocol (SSE / Streamable HTTP) | Tool servers implementing the Model Context Protocol |
+There are two ways to build an Orceum app — pick whichever fits your stack:
+
+| Type | How it works | Best for |
+|------|-------------|----------|
+| **Native** | Orceum sends HTTPS `POST` requests to your endpoint | Any backend you control — Express, FastAPI, Rails, Lambda, anything |
+| **MCP** | Your server implements the [Model Context Protocol](https://modelcontextprotocol.io) | If you already have an MCP tool server or want the standardised tool-calling spec |
+
+Both types use the same manifest format and the same registration flow. The only difference is transport.
 
 <Note>
-System and Skill app types are internal to Orceum and not available for third-party developers.
+There are also **System** and **Skill** app types, but those are internal to Orceum. As a third-party developer, you'll use **Native** or **MCP**.
 </Note>
+
+---
+
+## Ready to build?
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="bolt" href="/quickstart">
+    Build and register your first app in under 10 minutes
+  </Card>
+  <Card title="App Architecture" icon="grid-2" href="/building-apps/overview">
+    Understand how apps, manifests, and actions fit together
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/building-apps/webhooks">
+    Push real-time events from your service into Orceum
+  </Card>
+  <Card title="OAuth Setup" icon="key" href="/configuration/oauth">
+    Full OAuth 2.0 with PKCE — so Orca can auth as the user
+  </Card>
+</CardGroup>

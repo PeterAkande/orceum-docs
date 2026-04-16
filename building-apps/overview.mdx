@@ -19,28 +19,23 @@ An Orceum App is a pluggable service that extends what Orceum's AI agents can **
 
 ## Platform Architecture
 
-```
-User: "Send an email to Sarah"
-        ↓
-┌──────────────────────────────────┐
-│       ORCEUM AI BRAIN            │
-│  Identifies app + action + params│
-└────────────┬─────────────────────┘
-             ↓
-┌──────────────────────────────────┐
-│      EXECUTION ENGINE            │
-│  Resolves installation           │
-│  Decrypts credentials            │
-│  Calls your app                  │
-└────────────┬─────────────────────┘
-             ↓
-┌──────────────────────────────────┐
-│         YOUR APP                 │
-│  Receives action call            │
-│  Executes → returns JSON         │
-│                                  │
-│  ← Optionally pushes events back │
-└──────────────────────────────────┘
+```mermaid
+flowchart TD
+    U(["User: 'Send an email to Sarah'"])
+    B["Orceum — AI Brain\nIdentifies app + action + params"]
+    E["Execution Engine\nResolves installation · Decrypts credentials · Calls your app"]
+    A["Your App\nReceives action call · Executes · Returns JSON"]
+    W(["Optionally push events back"])
+
+    U --> B --> E --> A
+    A -.->|webhook event| E
+    E -.->|delivers event| W
+
+    style U fill:#e67e22,color:#fff,stroke:none
+    style B fill:#9b4628,color:#fff,stroke:none
+    style E fill:#9b4628,color:#fff,stroke:none
+    style A fill:#c55a3a,color:#fff,stroke:none
+    style W fill:#e67e22,color:#fff,stroke:none
 ```
 
 ### Key Concepts
@@ -59,13 +54,13 @@ User: "Send an email to Sarah"
 
 ## App Types
 
-<CardGroup cols={2}>
+<CardGroup cols={3}>
   <Card title="Native" icon="globe">
     **Transport:** HTTPS POST  
     **Manifest:** You provide it  
     **Best for:** Any HTTP API you control
 
-    The most common type. Orceum sends a `POST` to your `app_url` with the action and parameters.
+    The most common type. Orceum sends a `POST` to your endpoint with the action and parameters.
   </Card>
   <Card title="MCP" icon="server">
     **Transport:** MCP Protocol (SSE / Streamable HTTP)  
@@ -74,40 +69,57 @@ User: "Send an email to Sarah"
 
     Orceum connects to your MCP server and calls tools using the Model Context Protocol.
   </Card>
+  <Card title="Skill" icon="code">
+    **Transport:** Orceum managed sandbox  
+    **Manifest:** Defined in `SKILL.md` bundle  
+    **Best for:** Code + knowledge packages, no deployment needed
+
+    Upload a ZIP, GitHub repo, or `SKILL.md` file. Orceum runs your code in an isolated sandbox.
+  </Card>
 </CardGroup>
 
 <Note>
-**System** and **Skill** app types are internal to Orceum. System apps are built-in (Ping, Weather, Notes). Skill apps are user-uploaded code bundles. Neither is available for third-party developers.
+**System** apps are built-in to Orceum (e.g. Ping, Weather, Notes) and are not available to third-party developers. **Native**, **MCP**, and **Skill** apps are all open to third-party developers.
 </Note>
 
 ### Comparison
 
-| Feature | Native | MCP |
-|---------|--------|-----|
-| Transport | HTTPS POST | MCP Protocol |
-| Manifest source | You define it | Auto-discovered via `tools/list` |
-| Auth support | NONE, API_KEY, OAUTH | NONE, OAUTH |
-| Action call format | `{ event, event_data, timestamp }` | MCP `call_tool` |
-| Webhook support | Yes | Yes |
-| Setup complexity | Low | Medium |
+| Feature | Native | MCP | Skill |
+|---------|--------|-----|-------|
+| Transport | HTTPS POST | MCP Protocol | Orceum sandbox |
+| Manifest source | You define it | Auto-discovered via `tools/list` | `SKILL.md` bundle |
+| Auth support | NONE, API_KEY, OAUTH | NONE, OAUTH | N/A (sandbox-managed) |
+| Action call format | `{ event, event_data, timestamp }` | MCP `call_tool` | Sandbox invocation |
+| Deployment required | Yes | Yes | No |
+| Webhook support | Yes | Yes | No |
+| Setup complexity | Low | Medium | Very low |
 
 ---
 
 ## Installation Lifecycle
 
-```
-App Registered (ACTIVE)
-       ↓
-User initiates install → POST /v1/apps/{app_id}/install
-       ↓
-Next action determined by auth_type:
-  NONE     → Instantly ACTIVE
-  API_KEY  → Collect key → ACTIVE
-  OAUTH    → Redirect → consent → callback → ACTIVE
-       ↓
-Lifecycle webhook: INSTALLED sent to your app
-       ↓
-App ready to handle action calls
-       ↓
-User uninstalls → Lifecycle webhook: UNINSTALLED
+```mermaid
+flowchart TD
+    R(["App Registered"])
+    I["User initiates install"]
+    AT{auth_type?}
+    N["NONE → instantly ACTIVE"]
+    AK["API_KEY → collect key → ACTIVE"]
+    OA["OAUTH → redirect → consent → callback → ACTIVE"]
+    LW["Lifecycle webhook: INSTALLED sent to your app"]
+    AC(["App ready to handle action calls"])
+    UN(["User uninstalls → Lifecycle webhook: UNINSTALLED"])
+
+    R --> I --> AT
+    AT -->|NONE| N
+    AT -->|API_KEY| AK
+    AT -->|OAUTH| OA
+    N & AK & OA --> LW --> AC
+    AC --> UN
+
+    style R fill:#e67e22,color:#fff,stroke:none
+    style AT fill:#9b4628,color:#fff,stroke:none
+    style LW fill:#9b4628,color:#fff,stroke:none
+    style AC fill:#c55a3a,color:#fff,stroke:none
+    style UN fill:#c55a3a,color:#fff,stroke:none
 ```

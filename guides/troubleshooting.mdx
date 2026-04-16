@@ -4,7 +4,7 @@ description: "Common issues and solutions for Orceum app developers"
 ---
 
 <AccordionGroup>
-  <Accordion title="My app returns 200 but Orca AI says it failed">
+  <Accordion title="My app returns 200 but the assistant says it failed">
     **Cause:** Your response body is not in the expected format.
 
     **Fix:** Ensure you return `{ "result": ... }` at the top level:
@@ -78,7 +78,7 @@ description: "Common issues and solutions for Orceum app developers"
     Never use a global or shared account. Each installation is a separate user.
   </Accordion>
 
-  <Accordion title="Orca AI ignores my app even for obvious queries">
+  <Accordion title="The assistant ignores my app even for obvious queries">
     **Cause:** Action descriptions are too vague or don't include trigger phrases.
 
     **Fix:** Rewrite descriptions to include *when* to use the action:

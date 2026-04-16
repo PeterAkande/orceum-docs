@@ -135,9 +135,9 @@ Static headers and query parameters added to **every** action call, in addition 
 ## AI Usage Instructions
 
 <ParamField body="additional_usage_info" type="string">
-  Free-form text injected directly into the Orca AI executor prompt when running actions for your app. Use this to communicate app-specific behaviors, constraints, or conventions that aren't expressed in action descriptions.
+  Free-form text injected directly into the assistant's execution context when running actions for your app. Use this to communicate app-specific behaviors, constraints, or conventions that aren't expressed in action descriptions.
 
-  This is your app's direct channel to Orca AI at execution time.
+  This is your app's direct channel to the assistant at execution time.
 
   **Examples:**
   - *"Always include the user's timezone when creating calendar events."*
@@ -161,7 +161,7 @@ curl -X PATCH https://api.orceum.com/v1/apps/{app_id} \
   -H "Content-Type: application/json" \
   -d '{
     "config": {
-      "additional_usage_info": "New instructions for Orca AI.",
+      "additional_usage_info": "New instructions for the assistant.",
       "webhook_config": {
         "events_enabled": true
       }

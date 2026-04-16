@@ -84,7 +84,7 @@ Request only the exact scopes your app needs. Users see the requested scopes on 
 
 ### 6. Validate All Inputs
 
-Even though Orca AI constructs action parameters from your manifest, always validate inputs server-side. Never trust `event_data` without validation:
+Even though the assistant constructs action parameters from your manifest, always validate inputs server-side. Never trust `event_data` without validation:
 
 ```python
 from pydantic import BaseModel, validator

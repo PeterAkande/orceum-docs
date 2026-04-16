@@ -1,6 +1,6 @@
 ---
 title: "Registering Your App"
-description: "Create a native or MCP app on Orceum to get your app ID and webhook secret"
+description: "Create a native, MCP, or Skill app on Orceum to get your app ID and webhook secret"
 ---
 
 Registration creates your app's identity on Orceum. You'll receive an `app_id` (needed for all subsequent API calls) and an `orceum_webhook_secret` (used to sign the lifecycle webhooks Orceum sends to you).
@@ -113,11 +113,11 @@ Orceum will connect to your MCP server, discover tools, and auto-generate the ma
 </ParamField>
 
 <ParamField body="description" type="string" required>
-  A concise, user-facing description. Also used by Orca AI to understand what your app does.
+  A concise, user-facing description. Also used by the assistant to understand what your app does.
 </ParamField>
 
 <ParamField body="app_type" type="string" required>
-  `NATIVE` or `MCP`. Determines which registration endpoint and execution model to use.
+  `NATIVE`, `MCP`, or `SKILL`. Determines which registration endpoint and execution model to use.
 </ParamField>
 
 <ParamField body="auth_type" type="string" required>

@@ -11,7 +11,7 @@ Orceum interprets your HTTP response status codes to decide whether to retry, tr
 
 | Status Code | Orceum Behavior |
 |-------------|----------------|
-| `200` | Success — `result` returned to Orca AI |
+| `200` | Success — `result` returned to the assistant |
 | `401` | Trigger token refresh (OAuth) or prompt re-auth, then retry once |
 | `429` | Retry with backoff, up to 3 attempts |
 | Any other error | Mark call as failed, surface error message to user |
@@ -28,7 +28,7 @@ When returning a non-200 status, include a JSON body with a `detail` field:
 }
 ```
 
-Orca AI will relay this message to the user in a conversational way.
+The assistant will relay this message to the user in a conversational way.
 
 ---
 
@@ -85,7 +85,7 @@ I tried to run "create_task" but your Todo Manager app returned an error. Please
 
 ## Validation Errors
 
-If the Orca AI sends parameters your app rejects, return `400` with a descriptive message:
+If the assistant sends parameters your app rejects, return `400` with a descriptive message:
 
 ```json
 HTTP 400
@@ -95,7 +95,7 @@ HTTP 400
 }
 ```
 
-This helps Orca AI understand the constraint and potentially re-try with corrected parameters.
+This helps the assistant understand the constraint and potentially re-try with corrected parameters.
 
 ---
 

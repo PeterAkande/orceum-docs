@@ -3,7 +3,7 @@ title: "Guide: Build a Native App"
 description: "End-to-end walkthrough — build, register, install, and test a Todo Manager native app"
 ---
 
-This guide walks you through building a complete native app on Orceum from scratch. We'll build a **Todo Manager** that lets users create and list tasks via Orca AI.
+This guide walks you through building a complete native app on Orceum from scratch. We'll build a **Todo Manager** that lets users create and list tasks via the assistant.
 
 ---
 
@@ -242,12 +242,12 @@ curl -X POST https://api.orceum.com/v1/apps/app_a1b2c3d4/installations/inst_abc1
   -H "Authorization: Bearer USER_TOKEN" \
   -d '{"api_key": "sk-myapikey123"}'
 
-# Now test via an action call (or through Orca AI)
+# Now test via an action call (or through the assistant)
 ```
 
-Now open Orca AI and say: *"Add a task: review the Q4 budget by Friday"*
+Now open Orceum and say: *"Add a task: review the Q4 budget by Friday"*
 
-Orca AI will call `create_task` on your app, receive the result, and respond: *"Done — I've added 'Review the Q4 budget' to your list, due Friday."*
+The assistant will call `create_task` on your app, receive the result, and respond: *"Done — I've added 'Review the Q4 budget' to your list, due Friday."*
 
 ---
 

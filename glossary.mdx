@@ -5,11 +5,11 @@ description: "Key terms and concepts in the Orceum developer platform"
 
 <AccordionGroup>
   <Accordion title="Action">
-    A discrete capability your app exposes — a named operation that Orca AI can invoke on behalf of a user. Defined in your app's manifest with a `name`, `description`, `endpoint`, and `parameters`. Examples: `create_task`, `send_email`, `search_documents`.
+    A discrete capability your app exposes — a named operation that the assistant can invoke on behalf of a user. Defined in your app's manifest with a `name`, `description`, `endpoint`, and `parameters`. Examples: `create_task`, `send_email`, `search_documents`.
   </Accordion>
 
   <Accordion title="App">
-    A registered integration on Orceum. An app defines what it can do (via actions or MCP tools), how users authenticate, and how it communicates. Apps are either `NATIVE` (HTTP webhook endpoints) or `MCP` (Model Context Protocol server).
+    A registered integration on Orceum. An app defines what it can do (via actions or MCP tools), how users authenticate, and how it communicates. Apps are `NATIVE` (HTTP webhook endpoints), `MCP` (Model Context Protocol server), or `SKILL` (code + knowledge bundle).
   </Accordion>
 
   <Accordion title="app_id">
@@ -17,7 +17,7 @@ description: "Key terms and concepts in the Orceum developer platform"
   </Accordion>
 
   <Accordion title="app_summary">
-    An AI-facing text field injected into Orca's system prompt when considering whether to use your app. Distinct from `description` (which is user-facing). Write it to describe operational behavior, not marketing messaging.
+    An AI-facing text field injected into the assistant's context when considering whether to use your app. Distinct from `description` (which is user-facing). Write it to describe operational behavior, not marketing messaging.
   </Accordion>
 
   <Accordion title="auth_type">
@@ -29,7 +29,7 @@ description: "Key terms and concepts in the Orceum developer platform"
   </Accordion>
 
   <Accordion title="Event">
-    A real-time notification pushed by your app into Orca AI's pipeline via `POST /v1/apps/{app_id}/events`. Events represent something that happened on the user's behalf (e.g. `task.completed`, `payment.failed`). Not to be confused with action calls from Orceum to your app.
+    A real-time notification pushed by your app into Orceum's pipeline via `POST /v1/apps/{app_id}/events`. Events represent something that happened on the user's behalf (e.g. `task.completed`, `payment.failed`). Not to be confused with action calls from Orceum to your app.
   </Accordion>
 
   <Accordion title="installation_id">
@@ -52,8 +52,8 @@ description: "Key terms and concepts in the Orceum developer platform"
     An Orceum app type where actions are invoked via HTTP POST to your `base_url + endpoint`. You define the manifest, handle requests, and return JSON responses. Supports `NONE`, `API_KEY`, and `OAUTH` authentication.
   </Accordion>
 
-  <Accordion title="Orca AI">
-    The AI agent that powers Orceum conversations. It discovers and invokes apps, interprets results, and responds to users. Orca AI reads your action descriptions to decide when to use your app and which actions to call.
+  <Accordion title="The Assistant">
+    The AI agent that powers Orceum conversations. It discovers and invokes apps, interprets results, and responds to users. The assistant reads your action descriptions to decide when to use your app and which actions to call.
   </Accordion>
 
   <Accordion title="orc_* secret">

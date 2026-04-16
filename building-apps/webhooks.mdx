@@ -1,9 +1,9 @@
 ---
 title: "Webhooks (Event Push)"
-description: "Push events from your app to Orca AI — with HMAC signature verification"
+description: "Push events from your app to Orceum — with HMAC signature verification"
 ---
 
-Orceum webhooks let your app push events *into* Orca AI's conversation engine. Instead of waiting to be called, your app can proactively notify users: *"Your export is ready"*, *"New ticket assigned to you"*, *"Payment failed."*
+Orceum webhooks let your app push events *into* the assistant's context. Instead of waiting to be called, your app can proactively notify users: *"Your export is ready"*, *"New ticket assigned to you"*, *"Payment failed."*
 
 This is distinct from [lifecycle webhooks](/building-apps/lifecycle-webhooks), which are Orceum *calling you* to report installation events.
 
@@ -69,7 +69,7 @@ curl -X POST https://api.orceum.com/v1/apps/{app_id}/events \
 </ParamField>
 
 <ParamField body="event_data" type="object" required>
-  Payload containing all relevant context about the event. Be specific — Orca AI uses this to compose the message to the user.
+  Payload containing all relevant context about the event. Be specific — the assistant uses this to compose the message to the user.
 </ParamField>
 
 <ParamField body="timestamp" type="string" required>

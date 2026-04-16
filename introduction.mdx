@@ -118,10 +118,15 @@ Building an app for Orceum is straightforward. There are four things to do:
     A manifest is a simple JSON description of what your app can do. You list your **actions** (like `send_email`, `create_task`, `get_unread`) along with their parameters and plain-English descriptions. Orceum reads this so the assistant understands your app's capabilities.
   </Step>
   <Step title="Register your app">
-    One API call to Orceum. You send your app's endpoint URL, authentication config, and manifest. That's it — your app is now in the system.
+    Head to the [Orceum Developer Studio](https://orceum.com/developer-studio) and create your app.
+
+    - **Native or MCP** — your server needs to be deployed and reachable first. You'll provide your endpoint URL, auth config, and manifest (or point to your MCP server and Orceum discovers the manifest automatically).
+    - **Skill** — no deployment needed. You upload a skill bundle (a ZIP file or GitHub URL containing a `SKILL.md` and any supporting code). Orceum runs it in a managed sandbox.
   </Step>
   <Step title="Handle action calls">
-    When the assistant decides to use your app, Orceum sends a `POST` request to your endpoint with a payload like:
+    When the assistant decides to use your app, how it gets called depends on your app type:
+
+    **Native** — Orceum sends a `POST` request to your endpoint:
     ```json
     {
       "event": "send_email",
@@ -133,7 +138,13 @@ Building an app for Orceum is straightforward. There are four things to do:
       "timestamp": "2026-04-15T08:30:00Z"
     }
     ```
-    Your app executes the action and returns a JSON result. That's the core contract.
+    Your server receives the request, executes the action, and returns a JSON result.
+
+    **MCP** — Orceum calls your server using the [Model Context Protocol](https://modelcontextprotocol.io). Your MCP server handles the tool call and returns the result in the MCP response format.
+
+    **Skill** — Orceum runs your uploaded code directly in a managed sandbox. No inbound HTTP request — your script executes and its output is returned to the assistant.
+
+    In all three cases, the end result is the same: an action runs and a result comes back.
   </Step>
   <Step title="Push events (optional)">
     Something happened on your end? New email arrived, calendar invite updated, task completed? Push an event to Orceum and the assistant will decide what to do with it — notify the user, update a brief, trigger another action. Your app doesn't need to figure out the "what next" — Orceum does.
@@ -144,17 +155,18 @@ Building an app for Orceum is straightforward. There are four things to do:
 
 ## Pick your app type
 
-There are two ways to build an Orceum app — pick whichever fits your stack:
+There are three ways to build an Orceum app:
 
-| Type | How it works | Best for |
-|------|-------------|----------|
-| **Native** | Orceum sends HTTPS `POST` requests to your endpoint | Any backend you control — Express, FastAPI, Rails, Lambda, anything |
-| **MCP** | Your server implements the [Model Context Protocol](https://modelcontextprotocol.io) | If you already have an MCP tool server or want the standardised tool-calling spec |
+| Type | How it works | Best for | Deploy required? |
+|------|-------------|----------|------------------|
+| **Native** | Orceum sends HTTPS `POST` requests to your endpoint | Any backend you control — Express, FastAPI, Rails, Lambda, anything | Yes |
+| **MCP** | Your server implements the [Model Context Protocol](https://modelcontextprotocol.io) | If you already have an MCP tool server or want the standardised tool-calling spec | Yes |
+| **Skill** | You upload a code + knowledge bundle (`SKILL.md` + scripts); Orceum runs it in a managed sandbox | Lightweight automations, scripts, or AI-augmented workflows — no server to maintain | No |
 
-Both types use the same manifest format and the same registration flow. The only difference is transport.
+Native and MCP apps follow the same manifest + registration flow. The only difference is transport. Skills have their own two-step creation flow in the Developer Studio — upload your bundle, Orceum validates it and extracts the manifest automatically.
 
 <Note>
-There are also **System** and **Skill** app types, but those are internal to Orceum. As a third-party developer, you'll use **Native** or **MCP**.
+**System** apps are internal to Orceum and not available to third-party developers.
 </Note>
 
 ---
@@ -172,6 +184,6 @@ There are also **System** and **Skill** app types, but those are internal to Orc
     Push real-time events from your service into Orceum
   </Card>
   <Card title="OAuth Setup" icon="key" href="/configuration/oauth">
-    Full OAuth 2.0 with PKCE — so Orca can auth as the user
+    Full OAuth 2.0 with PKCE — so Orceum can auth as the user
   </Card>
 </CardGroup>

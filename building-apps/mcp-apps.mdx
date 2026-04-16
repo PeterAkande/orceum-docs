@@ -13,22 +13,29 @@ MCP apps use a different registration endpoint (`/v1/apps/mcp`) and execution mo
 
 ## How MCP Apps Work
 
-```
-User asks Orca AI to do something
-        │
-        ▼
-Orceum contacts your MCP server
-        │
-        ├─→ list_tools()     → discover available tools
-        └─→ call_tool(name, args) → execute a tool
+```mermaid
+flowchart TD
+    U(["User makes a request"])
+    O["Orceum assistant\nSelects the appropriate tool"]
+    LT["list_tools() → discover available tools"]
+    CT["call_tool(name, args) → execute tool"]
+    M["Your MCP Server"]
+    R(["Result returned → assistant summarizes to user"])
 
-MCP server returns result → Orca AI summarizes to user
+    U --> O --> LT --> M
+    O --> CT --> M
+    M --> R
+
+    style U fill:#e67e22,color:#fff,stroke:none
+    style O fill:#9b4628,color:#fff,stroke:none
+    style M fill:#9b4628,color:#fff,stroke:none
+    style R fill:#c55a3a,color:#fff,stroke:none
 ```
 
 1. Orceum sends `list_tools()` to your MCP server to discover available tools
-2. Based on tool descriptions, Orca AI selects the appropriate tool
+2. Based on tool descriptions, the assistant selects the appropriate tool
 3. Orceum calls `call_tool(tool_name, arguments)` on your server
-4. The result is returned to Orca AI, which summarizes it for the user
+4. The result is returned to the assistant, which summarizes it for the user
 
 ---
 
@@ -82,7 +89,7 @@ Orceum discovers your tools at different times depending on your `auth_type`:
 
 ### Auto-Generated Manifest
 
-After discovery, Orceum auto-generates a manifest from your tool descriptions. The quality of tool descriptions directly affects how well Orca AI selects and uses your tools. Write tool descriptions as if explaining to a non-technical user what the tool does.
+After discovery, Orceum auto-generates a manifest from your tool descriptions. The quality of tool descriptions directly affects how well the assistant selects and uses your tools. Write tool descriptions as if explaining to a non-technical user what the tool does.
 
 ### Regenerating the Manifest
 
@@ -184,7 +191,7 @@ if __name__ == "__main__":
 ```
 
 <Tip>
-Write clear, specific docstrings for each tool. Orca AI reads these to decide when and how to call your tools. Vague descriptions lead to poor tool selection.
+Write clear, specific docstrings for each tool. The assistant reads these to decide when and how to call your tools. Vague descriptions lead to poor tool selection.
 </Tip>
 
 ---

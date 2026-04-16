@@ -1,6 +1,6 @@
 ---
 title: "AI Summary & Discoverability"
-description: "Configure how Orca AI describes and discovers your app — for users and for the AI agent"
+description: "Configure how Orceum describes and discovers your app — for users and for the AI agent"
 ---
 
 Orceum uses multiple text fields to determine when to suggest your app, how to describe it to users, and what to tell the AI model before executing actions. Getting these right is critical for your app to be discovered and used correctly.
@@ -12,7 +12,7 @@ Orceum uses multiple text fields to determine when to suggest your app, how to d
 | Field | Audience | Purpose |
 |-------|----------|---------|
 | `description` | **Users** | Shown in the marketplace and UI — what users read |
-| `app_summary` | **Orca AI** | Injected into the AI prompt — what the model reads before deciding to use your app |
+| `app_summary` | **The assistant** | Injected into the AI context — what the model reads before deciding to use your app |
 
 ---
 
@@ -22,7 +22,7 @@ The `description` is shown to users in the Orceum marketplace, installation scre
 
 ```json
 {
-  "description": "Manage your tasks and reminders. Create, update, and track todos with natural language — just tell Orca what you need done."
+  "description": "Manage your tasks and reminders. Create, update, and track todos with natural language — just tell Orceum what you need done."
 }
 ```
 
@@ -36,7 +36,7 @@ The `description` is shown to users in the Orceum marketplace, installation scre
 
 ## `app_summary` — AI-Facing
 
-The `app_summary` is injected into Orca AI's system prompt when evaluating whether to use your app and when constructing the execution context. This is *not* shown to users.
+The `app_summary` is injected into the assistant's context when evaluating whether to use your app and when constructing the execution context. This is *not* shown to users.
 
 ```json
 {
@@ -87,11 +87,11 @@ Show users important information *before* they install your app. Use this for re
 
 ## Improving AI Discoverability
 
-Orca AI discovers apps based on the user's intent. The better your descriptions, the more accurately the AI matches user requests to your app.
+The assistant discovers apps based on the user's intent. The better your descriptions, the more accurately the AI matches user requests to your app.
 
 ### Action-Level Descriptions
 
-Each action's `description` in your manifest is equally important. Orca AI reads these to decide *which action* to call:
+Each action's `description` in your manifest is equally important. The assistant reads these to decide *which action* to call:
 
 <Tabs>
   <Tab title="Too vague">

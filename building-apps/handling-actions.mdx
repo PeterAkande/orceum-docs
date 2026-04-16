@@ -3,7 +3,7 @@ title: "Handling Action Calls"
 description: "Understand the format of action requests sent to your app and how to route and respond to them"
 ---
 
-When Orca AI decides an action from your app should run, Orceum constructs and sends an authenticated HTTP request to your `base_url` + the action's `endpoint`. Your job is to handle it, execute the work, and return a clean response.
+When the assistant decides an action from your app should run, Orceum constructs and sends an authenticated HTTP request to your `base_url` + the action's `endpoint`. Your job is to handle it, execute the work, and return a clean response.
 
 ---
 
@@ -25,7 +25,7 @@ Orceum always sends a `POST` request regardless of your action's `method` field 
 | Field | Type | Description |
 |-------|------|-------------|
 | `event` | string | The action name from your manifest (e.g. `create_task`) |
-| `event_data` | object | The parameter values resolved by Orca AI |
+| `event_data` | object | The parameter values resolved by the assistant |
 | `timestamp` | string | ISO 8601 UTC timestamp of when the call was made |
 
 ---
@@ -179,7 +179,7 @@ Return a JSON object with a `result` key:
 }
 ```
 
-The `result` value can be any JSON — an object, array, string, or number. Orca AI summarizes it conversationally to the user.
+The `result` value can be any JSON — an object, array, string, or number. The assistant summarizes it conversationally to the user.
 
 ### For long-running operations
 

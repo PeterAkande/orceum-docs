@@ -1,6 +1,6 @@
 ---
 title: "API Reference — Events (Webhooks)"
-description: "Endpoints for pushing events into Orca AI and verifying your webhook setup"
+description: "Endpoints for pushing events to Orceum and verifying your webhook setup"
 ---
 
 Base URL: `https://api.orceum.com/v1`
@@ -15,7 +15,7 @@ These endpoints are used by your app to push events to Orceum (not by users). Au
 POST /apps/{app_id}/events
 ```
 
-Pushes a real-time event into Orca AI's conversation pipeline for a specific user's installation.
+Pushes a real-time event into the assistant's conversation pipeline for a specific user's installation.
 
 ### Required Headers
 
@@ -37,7 +37,7 @@ Pushes a real-time event into Orca AI's conversation pipeline for a specific use
 </ParamField>
 
 <ParamField body="event_data" type="object" required>
-  Payload with all relevant context. Orca AI uses this to compose the message to the user. Be specific.
+  Payload with all relevant context. The assistant uses this to compose the message to the user. Be specific.
 </ParamField>
 
 <ParamField body="timestamp" type="string" required>

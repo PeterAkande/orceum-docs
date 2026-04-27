@@ -23,10 +23,12 @@ jobs:
 
       - name: Build docs export
         run: |
+          # Prevent Mintlify from indexing previously generated static output.
+          rm -rf export export__tmp
           mintlify export
-          rm -rf export/
+          mkdir -p export
           unzip -o export.zip -d export/
-          rm export.zip
+          rm -f export.zip
 
       - name: Commit updated export
         run: |

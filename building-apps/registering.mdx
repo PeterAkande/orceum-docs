@@ -1,152 +1,83 @@
 ---
 title: "Registering Your App"
-description: "Create a native, MCP, or Skill app on Orceum to get your app ID and webhook secret"
+description: "Create a Native, MCP, or Skill app in the Developer Studio to get your App ID and webhook secret"
 ---
 
-Registration creates your app's identity on Orceum. You'll receive an `app_id` (needed for all subsequent API calls) and an `orceum_webhook_secret` (used to sign the lifecycle webhooks Orceum sends to you).
+Registration creates your app's identity on Orceum. You complete this process in the **Orceum Developer Studio**. 
+
+Upon creation, you receive an `app_id` (needed for OAuth and tracking) and an `orceum_webhook_secret` (used to verify the lifecycle webhooks Orceum sends to your app).
 
 ---
-
-<Note>
-Save your `orceum_webhook_secret` immediately after registration. It is only shown once. This is different from the `whs_*` token used for signing the events you *receive* — see [Webhooks](/building-apps/webhooks).
-</Note>
-
----
-
-## Native App
-
-POST to `/v1/apps/` with your full manifest:
-
-```bash
-curl -X POST https://api.orceum.com/v1/apps/ \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Todo Manager",
-    "description": "Manage tasks and reminders for users",
-    "app_type": "NATIVE",
-    "auth_type": "API_KEY",
-    "base_url": "https://todo.yourapp.com",
-    "actions": [
-      {
-        "name": "create_task",
-        "description": "Create a new task for the user",
-        "endpoint": "/actions",
-        "method": "POST",
-        "parameters": [
-          {
-            "name": "title",
-            "type": "string",
-            "description": "The task title",
-            "required": true
-          },
-          {
-            "name": "due_date",
-            "type": "string",
-            "description": "ISO 8601 due date, e.g. 2024-12-31",
-            "required": false
-          }
-        ]
-      }
-    ],
-    "config": {
-      "auth_config": {
-        "auth_header_key": "Authorization",
-        "authentication_scheme": "Bearer"
-      },
-      "webhook_config": {
-        "webhook_url": "https://todo.yourapp.com/webhooks/orceum",
-        "webhook_secret": "whs_your_secret"
-      }
-    }
-  }'
-```
-
-### Response
-
-```json
-{
-  "app_id": "app_a1b2c3d4e5f6g7h8i9j0",
-  "name": "Todo Manager",
-  "app_type": "NATIVE",
-  "auth_type": "API_KEY",
-  "status": "PENDING",
-  "orceum_webhook_secret": "orc_sk_AbC123...",
-  "created_at": "2024-01-15T12:00:00Z"
-}
-```
 
 <Warning>
-**Save `orceum_webhook_secret` now.** This `orc_*` secret is shown only once and is used to verify lifecycle webhooks (INSTALLED / UNINSTALLED) that Orceum sends to your `installation_webhook_url`. More in [Lifecycle Webhooks](/building-apps/lifecycle-webhooks).
+Save your **Orceum Webhook Secret** (`orc_sk_...`) immediately after creation. It is shown only once. This secret is used exclusively to verify lifecycle webhooks (like when a user installs your app). 
+
+This is different from the `whs_*` token you use to sign events you *send* to Orceum. See [Webhooks](/building-apps/webhooks).
 </Warning>
 
 ---
 
-## MCP App
+## Creating an App
 
-For apps that expose tools via the Model Context Protocol, use the `/v1/apps/mcp` endpoint:
+Go to the [Orceum Developer Studio](https://orceum.com/developer-studio) and click **Create App**. You will be asked to select your app type:
 
-```bash
-curl -X POST https://api.orceum.com/v1/apps/mcp \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "GitHub Tools",
-    "description": "Create issues, PRs, and review code on GitHub",
-    "auth_type": "OAUTH",
-    "mcp_server_url": "https://mcp.yourtool.com/mcp",
-    "transport": "STREAMABLE_HTTP",
-    "config": {
-      "oauth_config": { "..." : "..." }
-    }
-  }'
-```
+### Native App
 
-Orceum will connect to your MCP server, discover tools, and auto-generate the manifest. See [MCP Apps](/building-apps/mcp-apps) for the full setup guide.
+For apps where you host the HTTP endpoint that Orceum calls. You will need to provide:
+
+- **Name**: Display name of your app.
+- **Description**: A concise description. The AI uses this to understand what your app does broadly.
+- **Authentication Method**: `None`, `API Key`, or `OAuth`. See [Authentication](/building-apps/authentication).
+- **Endpoint URL**: The base URL Orceum will `POST` action calls to.
+- **Manifest**: You paste your JSON manifest detailing your app's actions and parameters. See [The Manifest](/building-apps/manifest).
+- **Webhook Configuration**: (Optional) Provide your installation webhook URL to receive lifecycle events.
+
+### MCP App
+
+For apps that expose tools via the Model Context Protocol. You will need to provide:
+
+- **Name** & **Description**: Display name and details.
+- **Authentication Method**: Usually `None` or `OAuth`.
+- **MCP Server URL**: The URL of your MCP endpoint.
+- **Transport**: Select between `SSE` or `Streamable HTTP`.
+
+Orceum connects to your MCP server, discovers your tools automatically via the protocol, and generates the manifest for you. See [MCP Apps](/building-apps/mcp-apps) for the full setup guide.
+
+### Skill
+
+For lightweight automations or scripts running in Orceum's managed sandbox. 
+
+You upload a code bundle (a ZIP file or GitHub repository link) containing a `SKILL.md` file. Orceum parses the bundle, extracts the manifest, and provisions the sandbox. No deployment or endpoint URL is required on your end.
 
 ---
 
-## Required Fields
+## Required Fields Summary
 
-<ParamField body="name" type="string" required>
+When creating any app, pay close attention to these fields:
+
+<ResponseField name="Name" type="string" required>
   Display name of your app. Shown to users in the marketplace and conversation UI.
-</ParamField>
+</ResponseField>
 
-<ParamField body="description" type="string" required>
-  A concise, user-facing description. Also used by the assistant to understand what your app does.
-</ParamField>
+<ResponseField name="Description" type="string" required>
+  A concise, user-facing description. Crucially, this is also used by the assistant to understand your app's overall purpose before inspecting its individual actions.
+</ResponseField>
 
-<ParamField body="app_type" type="string" required>
-  `NATIVE`, `MCP`, or `SKILL`. Determines which registration endpoint and execution model to use.
-</ParamField>
-
-<ParamField body="auth_type" type="string" required>
-  `NONE`, `API_KEY`, or `OAUTH`. See [Authentication](/building-apps/authentication).
-</ParamField>
-
-<ParamField body="base_url" type="string" required>
-  *(Native only)* Base URL for all action calls, e.g. `https://api.yourapp.com`
-</ParamField>
-
-<ParamField body="mcp_server_url" type="string" required>
-  *(MCP only)* URL of your MCP server endpoint.
-</ParamField>
-
-<ParamField body="actions" type="array" required>
-  *(Native only)* List of actions your app supports. See [Defining Your Manifest](/building-apps/manifest).
-</ParamField>
+<ResponseField name="Authentication Method" type="string" required>
+  `None`, `API Key`, or `OAuth`. Determines the installation flow for users.
+</ResponseField>
 
 ---
 
 ## After Registration
 
-1. Note your `app_id` — used in all subsequent API calls
-2. Save your `orceum_webhook_secret` (shown once)
-3. Register the OAuth redirect URI with your provider (if using OAuth):
-   ```
+1. **Copy your App ID**: You need this if you are configuring OAuth redirect URIs.
+2. **Save your Webhook Secret**: Store `orc_sk_...` securely; it will not be shown again.
+3. **Set up OAuth (if applicable)**: Register the Orceum redirect URI with your provider:
+   ```text
    https://api.orceum.com/v1/apps/{app_id}/oauth/callback
    ```
-4. Your app starts in `PENDING` state — [publish it](/configuration/marketplace) to make it discoverable
+4. **Publish your App**: Your app starts in a `PENDING` state. To make it discoverable in the store, you must publish it.
 
 <CardGroup cols={2}>
   <Card title="Installation Flow" icon="arrow-right" href="/building-apps/installation">

@@ -5,15 +5,7 @@ description: "Receive signed notifications when users install or uninstall your 
 
 Lifecycle webhooks are HTTP POSTs that Orceum sends **to your server** when a user installs or uninstalls your app. Use them to provision accounts, store installation IDs, clean up data, and revoke credentials.
 
-Configure your listener URL in `config.installation_webhook_url` during registration or via PATCH:
-
-```json
-{
-  "config": {
-    "installation_webhook_url": "https://todo.yourapp.com/webhooks/lifecycle"
-  }
-}
-```
+Configure your **Installation Webhook URL** in the **Webhooks** section of your app within the **Orceum Developer Studio**.
 
 ---
 
@@ -202,7 +194,7 @@ Use `hmac.compare_digest` (Python) or `crypto.timingSafeEqual` (Node.js) for sig
 
 | Secret | Prefix | Who Generates It | Used For |
 |--------|--------|-----------------|----------|
-| `orc_*` | `orc_` | Orceum (given at registration) | Verifying Orceum's lifecycle webhooks to *you* |
-| `whs_*` | `whs_` | You (set in your `webhook_config`) | Verifying events *you* push to Orceum |
+| `orc_*` | `orc_` | Orceum (shown once on creation) | Verifying Orceum's lifecycle webhooks to *you* |
+| `whs_*` | `whs_` | Orceum (visible in the dashboard) | Verifying events *you* push to Orceum |
 
-The `orc_*` secret is shown **once** at registration. Store it in your secrets manager immediately.
+The `orc_*` secret is shown **once** when you create your app. Store it in your secrets manager immediately.

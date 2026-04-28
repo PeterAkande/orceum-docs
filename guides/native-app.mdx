@@ -162,88 +162,58 @@ async def lifecycle_webhook(
 
 ## Step 4: Register Your App
 
-```bash
-curl -X POST https://api.orceum.com/v1/apps/ \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Todo Manager",
-    "description": "Manage your tasks and reminders. Create, list, and delete todos with natural language.",
-    "app_type": "NATIVE",
-    "auth_type": "API_KEY",
-    "base_url": "https://todo.yourapp.com",
-    "actions": [
-      {
-        "name": "create_task",
-        "description": "Create a new task or to-do item. Use when the user wants to add something to their task list, set a reminder, or track a piece of work.",
-        "endpoint": "/actions",
-        "method": "POST",
-        "parameters": [
-          {"name": "title", "type": "string", "description": "The task title — what needs to be done", "required": true},
-          {"name": "due_date", "type": "string", "description": "Due date in YYYY-MM-DD format. Optional.", "required": false},
-          {"name": "priority", "type": "string", "description": "Priority level: low, normal, high, urgent", "required": false}
-        ]
-      },
-      {
-        "name": "list_tasks",
-        "description": "List the user'\''s tasks. Use when the user asks what they have to do, wants to see their todo list, or checks on pending work.",
-        "endpoint": "/actions",
-        "method": "POST",
-        "parameters": [
-          {"name": "status", "type": "string", "description": "Filter by status: open, completed, all. Default is open.", "required": false},
-          {"name": "limit", "type": "integer", "description": "Max tasks to return. Default 10.", "required": false}
-        ]
-      },
-      {
-        "name": "delete_task",
-        "description": "Delete or remove a task from the user'\''s list. Requires the task_id from a previous list_tasks call.",
-        "endpoint": "/actions",
-        "method": "POST",
-        "parameters": [
-          {"name": "task_id", "type": "string", "description": "The ID of the task to delete", "required": true}
-        ]
-      }
-    ],
-    "config": {
-      "auth_config": {
-        "auth_header_key": "Authorization",
-        "authentication_scheme": "Bearer"
-      },
-      "installation_webhook_url": "https://todo.yourapp.com/webhooks/lifecycle",
-      "webhook_config": {
-        "events_enabled": true,
-        "webhook_secret": "whs_your_generated_secret"
-      },
-      "api_key_instructions": "Go to your Todo app account → Settings → API → Generate Key",
-      "api_key_format_hint": "Starts with sk- and is 40 characters long"
-    }
-  }'
+Go to the [Orceum Developer Studio](https://orceum.com/developer-studio), click **Create App**, and select **Native App**.
+
+1. **Basic Info**: Name it "Todo Manager" and provide a clear description.
+2. **Endpoint URL**: Enter your base URL (e.g., `https://todo.yourapp.com`).
+3. **Authentication**: Select **API Key**. Set the Header Name to `Authorization` and the Prefix to `Bearer`.
+4. **Manifest**: Paste the following JSON to define your actions:
+
+```json
+[
+  {
+    "name": "create_task",
+    "description": "Create a new task or to-do item. Use when the user wants to add something to their task list.",
+    "endpoint": "/actions",
+    "parameters": [
+      {"name": "title", "type": "string", "description": "The task title", "required": true},
+      {"name": "due_date", "type": "string", "description": "Due date in YYYY-MM-DD format", "required": false},
+      {"name": "priority", "type": "string", "description": "Priority: low, normal, high, urgent", "required": false}
+    ]
+  },
+  {
+    "name": "list_tasks",
+    "description": "List the user's tasks. Use when the user asks what they have to do.",
+    "endpoint": "/actions",
+    "parameters": [
+      {"name": "status", "type": "string", "description": "Filter by status: open, completed, all", "required": false},
+      {"name": "limit", "type": "integer", "description": "Max tasks to return. Default 10", "required": false}
+    ]
+  },
+  {
+    "name": "delete_task",
+    "description": "Delete a task from the user's list. Requires the task_id.",
+    "endpoint": "/actions",
+    "parameters": [
+      {"name": "task_id", "type": "string", "description": "The ID of the task to delete", "required": true}
+    ]
+  }
+]
 ```
 
-**Save the response:**
-```json
-{
-  "app_id": "app_a1b2c3d4",
-  "orceum_webhook_secret": "orc_sk_AbC123..."
-}
-```
+5. **Webhooks**: Enter your `installation_webhook_url`. Toggle **Events Enabled** on and copy your generated webhook secret (`whs_...`) from the dashboard.
+6. **Installation Guidance**: Add hints for the user to find their API key (e.g., "Go to your Todo app account → Settings → API").
+
+**Save your Orceum Webhook Secret!**
+When you create the app, Orceum displays an `orc_sk_...` secret. Copy this into your backend immediately — it is only shown once and is required to verify signatures on lifecycle webhooks.
 
 ---
 
 ## Step 5: Install and Test
 
-```bash
-# Install the app as a user
-curl -X POST https://api.orceum.com/v1/apps/app_a1b2c3d4/install \
-  -H "Authorization: Bearer USER_TOKEN"
-
-# Response: next_action = API_KEY — submit the key
-curl -X POST https://api.orceum.com/v1/apps/app_a1b2c3d4/installations/inst_abc123/api-key \
-  -H "Authorization: Bearer USER_TOKEN" \
-  -d '{"api_key": "sk-myapikey123"}'
-
-# Now test via an action call (or through the assistant)
-```
+1. Navigate to your newly created app in the Orceum Store.
+2. Click **Install**.
+3. When prompted by the UI, enter your test API key (e.g., `sk-myapikey123`).
 
 Now open Orceum and say: *"Add a task: review the Q4 budget by Friday"*
 

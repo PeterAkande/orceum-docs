@@ -113,7 +113,7 @@ Hit **Create App**. Your app is now registered and gets an `app_id`.
 
 Once your app is registered, it appears in the **Orceum Store** (or you can share a direct install link). A user installs it from there — this is what creates an **installation**, the per-user binding that holds their credentials.
 
-For API key apps, the install flow prompts the user to enter their API key. Orceum encrypts it and injects it into every call as the `X-API-Key` header automatically.
+For API key apps, the install flow prompts the user to enter their API key. Orceum encrypts it and automatically injects it into every call using the custom header you defined during app creation (or `X-API-Key` by default).
 
 <Note>
 During development, you can install your own app. Go to the Orceum Store, find your app, and hit **Install**. Enter `my-secret-key` as the API key — this is what your local server will validate against.

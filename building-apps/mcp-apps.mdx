@@ -41,27 +41,13 @@ flowchart TD
 
 ## Registering an MCP App
 
-```bash
-curl -X POST https://api.orceum.com/v1/apps/mcp \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "GitHub Tools",
-    "description": "Create issues, review PRs, and search GitHub repositories",
-    "auth_type": "OAUTH",
-    "mcp_server_url": "https://mcp.yourtool.com/mcp",
-    "transport": "STREAMABLE_HTTP",
-    "config": {
-      "oauth_config": {
-        "client_id": "your_github_client_id",
-        "client_secret": "your_github_client_secret",
-        "authorization_url": "https://github.com/login/oauth/authorize",
-        "token_url": "https://github.com/login/oauth/access_token",
-        "scopes": ["repo", "read:user"]
-      }
-    }
-  }'
-```
+Go to the [Orceum Developer Studio](https://orceum.com/developer-studio), click **Create App**, and select **MCP App**.
+
+You will need to provide:
+- **Name** & **Description**
+- **Authentication Method**: `None` or `OAuth`
+- **MCP Server URL**: e.g., `https://mcp.yourtool.com/mcp`
+- **Transport**: `STREAMABLE_HTTP` (recommended) or `SSE`
 
 ---
 
@@ -93,7 +79,9 @@ After discovery, Orceum auto-generates a manifest from your tool descriptions. T
 
 ### Regenerating the Manifest
 
-If you add, remove, or update tools on your MCP server, trigger a manifest refresh:
+If you add, remove, or update tools on your MCP server, you must refresh your app's manifest so Orceum discovers the changes. 
+
+You can do this by clicking **Refresh Tools** in the Developer Studio, or programmatically via the API:
 
 ```bash
 curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
@@ -112,39 +100,17 @@ curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
 
 ## Authentication
 
-MCP apps support two auth types:
+MCP apps support two authentication methods:
 
-<Tabs>
-  <Tab title="NONE">
-    Your MCP server is publicly accessible (or uses its own internal auth). Orceum makes unauthenticated requests to your server.
+### None
 
-    ```json
-    {
-      "auth_type": "NONE"
-    }
-    ```
-  </Tab>
-  <Tab title="OAUTH">
-    Users go through an OAuth flow on first install. Orceum injects the access token into MCP requests as a Bearer token.
+Your MCP server is publicly accessible (or uses its own internal auth). Orceum makes unauthenticated requests to your server.
 
-    ```json
-    {
-      "auth_type": "OAUTH",
-      "config": {
-        "oauth_config": {
-          "authorization_url": "https://provider.com/oauth/authorize",
-          "token_url": "https://provider.com/oauth/token",
-          "client_id": "...",
-          "client_secret": "...",
-          "scopes": ["..."]
-        }
-      }
-    }
-    ```
+### OAuth 2.0
 
-    Orceum automatically handles token refresh before calling your MCP server.
-  </Tab>
-</Tabs>
+Users go through an OAuth flow on their first install. Orceum automatically handles the token lifecycle and injects the active access token into MCP requests as a Bearer token. 
+
+You can configure your OAuth settings (Client ID, Client Secret, endpoints, and scopes) directly in the **Orceum Developer Studio**.
 
 ---
 

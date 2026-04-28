@@ -1,161 +1,104 @@
 ---
 title: "Authentication"
-description: "Choose how users authenticate when installing your app — NONE, API_KEY, or OAUTH"
+description: "Choose how users authenticate when installing your app — None, API Key, or OAuth"
 ---
 
-Your app's `auth_type` determines what users must do during installation to grant your app access to their account. Orceum manages the entire credential lifecycle — collection, encryption, injection, refresh, and revocation.
+Your app's Authentication Method determines what users must do during installation to grant your app access to their account. Orceum manages the entire credential lifecycle — collection, encryption, injection, refresh, and revocation.
+
+You configure these settings directly in the **Orceum Developer Studio** when creating or editing your app.
 
 ---
 
 ## Comparison
 
-| Auth Type | Installation UX | Credentials Injected On Call | Use When |
+| Auth Method | Installation UX | Credentials Injected On Call | Use When |
 |-----------|----------------|------------------------------|----------|
-| `NONE` | Instant — no steps | Nothing extra | Public APIs, internal tools |
-| `API_KEY` | User pastes a key | `Authorization: Bearer <key>` (or custom header) | Services with API keys |
-| `OAUTH` | OAuth consent screen redirect | `Authorization: Bearer <access_token>` | Services with OAuth 2.0 |
+| **None** | Instant — no steps | Nothing extra | Public APIs, internal tools |
+| **API Key** | User pastes a key | `Authorization: Bearer <key>` (or custom header) | Services with API keys |
+| **OAuth 2.0** | OAuth consent screen redirect | `Authorization: Bearer <access_token>` | Services with OAuth 2.0 |
 
 ---
 
-## NONE — No Authentication
+## None (No Authentication)
 
-The simplest option. Installation completes instantly with no user input.
-
-```json
-{
-  "auth_type": "NONE"
-}
-```
+The simplest option. Select **None** in the Developer Studio. Installation completes instantly with no user input.
 
 **Use when:** Your app doesn't need per-user credentials (public APIs, tools with their own access control, internal services).
 
 ---
 
-## API_KEY — API Key Authentication
+## API Key Authentication
 
-Users provide an API key during installation. Orceum encrypts it and injects it on every subsequent action call.
-
-```json
-{
-  "auth_type": "API_KEY",
-  "config": {
-    "auth_config": {
-      "auth_header_key": "Authorization",
-      "authentication_scheme": "Bearer"
-    }
-  }
-}
-```
+Users provide an API key during installation. Select **API Key** in the Developer Studio. Orceum encrypts the key and injects it on every subsequent action call.
 
 **Installation flow:**
 1. User installs → Orceum prompts: *"Enter your API key"*
-2. Optionally, `api_key_instructions` and `api_key_format_hint` guide the user
-3. User submits key → validated (min 8 chars) → encrypted and stored
-4. Every action call includes the key in the configured header
+2. Optionally, provide instructions and a format hint in the Developer Studio to guide the user.
+3. User submits key → validated (min 8 chars) → encrypted and stored.
+4. Every action call includes the key in your configured header.
 
-### auth_config Fields
+### Configuration Fields
 
-<ParamField body="auth_header_key" type="string" default="X-API-KEY">
-  The HTTP header name that carries the API key. Common values: `Authorization`, `X-API-Key`, `Api-Key`
-</ParamField>
+When you select API Key authentication, you will configure how the key is sent to your app:
 
-<ParamField body="authentication_scheme" type="string" default="">
-  Prefix added before the key value. For `Bearer`, the header becomes: `Authorization: Bearer sk-abc123`
-
-  Leave empty for no prefix: `X-API-Key: sk-abc123`
-</ParamField>
-
-<ParamField body="api_key_location" type="string" default="HEADER">
-  Where to put the key: `HEADER` (default) or `QUERY`.
-
-  If `QUERY`, the key is added as a query parameter instead of a header: `?X-API-KEY=sk-abc123`
-</ParamField>
+- **Header Name**: The HTTP header name that carries the API key. Common values: `Authorization`, `X-API-Key`, `Api-Key`.
+- **Header Prefix**: A prefix added before the key value. For `Bearer`, the header becomes: `Authorization: Bearer sk-abc123`. Leave empty for no prefix.
+- **Key Location**: Where to put the key: `Header` (default) or `Query Parameter`. If `Query Parameter`, the key is added to the URL instead of a header: `?X-API-KEY=sk-abc123`.
 
 ### Examples
 
 <Tabs>
   <Tab title="Bearer Token">
-    ```json
-    {
-      "auth_header_key": "Authorization",
-      "authentication_scheme": "Bearer"
-    }
-    ```
-    Orceum sends: `Authorization: Bearer sk-abc123`
+    If your API expects `Authorization: Bearer sk-abc123`:
+    - **Header Name**: `Authorization`
+    - **Header Prefix**: `Bearer`
+    - **Key Location**: `Header`
   </Tab>
   <Tab title="Custom Header">
-    ```json
-    {
-      "auth_header_key": "X-API-Key",
-      "authentication_scheme": ""
-    }
-    ```
-    Orceum sends: `X-API-Key: sk-abc123`
+    If your API expects `X-API-Key: sk-abc123`:
+    - **Header Name**: `X-API-Key`
+    - **Header Prefix**: *(Leave empty)*
+    - **Key Location**: `Header`
   </Tab>
   <Tab title="Query Parameter">
-    ```json
-    {
-      "auth_header_key": "api_key",
-      "api_key_location": "QUERY"
-    }
-    ```
-    Orceum sends: `POST /actions?api_key=sk-abc123`
+    If your API expects `POST /actions?api_key=sk-abc123`:
+    - **Header Name**: `api_key`
+    - **Key Location**: `Query Parameter`
   </Tab>
 </Tabs>
 
 ---
 
-## OAUTH — OAuth 2.0
+## OAuth 2.0
 
-Full OAuth 2.0 Authorization Code flow, managed entirely by Orceum. Orceum handles the redirect, code exchange, token storage, automatic refresh, and revocation.
-
-```json
-{
-  "auth_type": "OAUTH",
-  "config": {
-    "oauth_config": {
-      "client_id": "your_client_id",
-      "client_secret": "your_client_secret",
-      "authorization_url": "https://provider.com/oauth/authorize",
-      "token_url": "https://provider.com/oauth/token",
-      "scopes": ["read", "write"],
-      "use_pkce": true,
-      "client_redirect_uris": [
-        "https://api.orceum.com/v1/apps/YOUR_APP_ID/oauth/callback"
-      ]
-    }
-  }
-}
-```
+Full OAuth 2.0 Authorization Code flow, managed entirely by Orceum. Select **OAuth** in the Developer Studio. Orceum handles the redirect, code exchange, token storage, automatic refresh, and revocation.
 
 **Installation flow:**
-1. User installs → Orceum builds the authorization URL
-2. User is redirected to your OAuth provider's consent screen
-3. User grants permissions
-4. Provider redirects to `https://api.orceum.com/v1/apps/{app_id}/oauth/callback`
-5. Orceum exchanges the code for access + refresh tokens
-6. Tokens encrypted at rest (Fernet encryption)
-7. Every action call includes: `Authorization: Bearer <access_token>`
+1. User installs → Orceum builds the authorization URL.
+2. User is redirected to your OAuth provider's consent screen.
+3. User grants permissions.
+4. Provider redirects to Orceum's callback URL.
+5. Orceum exchanges the code for access and refresh tokens.
+6. Tokens are encrypted at rest.
+7. Every action call includes: `Authorization: Bearer <access_token>`.
 
 <Warning>
-Register this exact redirect URI with your OAuth provider:
-```
+You must register this exact redirect URI with your OAuth provider:
+```text
 https://api.orceum.com/v1/apps/{your_app_id}/oauth/callback
 ```
 </Warning>
 
 ### Token Lifecycle
 
-- **Auto-refresh:** Orceum automatically refreshes the access token before it expires using the refresh token
-- **401 retry:** If your app returns `401`, Orceum attempts a token refresh and retries the request once
-- **Revocation:** When a user uninstalls, Orceum calls your `revoke_url` if configured
-- **Re-auth:** If refresh fails, the user is prompted to re-authenticate via a re-auth link
+- **Auto-refresh:** Orceum automatically refreshes the access token before it expires using the refresh token.
+- **401 retry:** If your app returns an HTTP `401 Unauthorized`, Orceum attempts a token refresh and retries the request once.
+- **Revocation:** When a user uninstalls, Orceum calls your Revoke URL if you provided one.
+- **Re-auth:** If a token refresh fails, the user is prompted to re-authenticate via a secure link.
 
 <Tip>
-For Google OAuth, add these to `additional_auth_params` to ensure you get a refresh token:
-```json
-{ "access_type": "offline", "prompt": "consent" }
-```
+For Google OAuth, add these to your **Additional Auth Parameters** in the dashboard to ensure you get a refresh token:
+`access_type: offline` and `prompt: consent`.
 </Tip>
 
 For the complete OAuth configuration reference, see [OAuth Deep Dive](/configuration/oauth).

@@ -159,45 +159,22 @@ railway up
 
 ## Step 3: Register with Orceum
 
-```bash
-curl -X POST https://api.orceum.com/v1/apps/mcp \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "GitHub Tools",
-    "description": "Create issues, list open work, and search repositories on GitHub",
-    "auth_type": "OAUTH",
-    "mcp_server_url": "https://github-mcp.up.railway.app/mcp",
-    "transport": "STREAMABLE_HTTP",
-    "config": {
-      "oauth_config": {
-        "client_id": "YOUR_GITHUB_CLIENT_ID",
-        "client_secret": "YOUR_GITHUB_CLIENT_SECRET",
-        "authorization_url": "https://github.com/login/oauth/authorize",
-        "token_url": "https://github.com/login/oauth/access_token",
-        "scopes": ["repo", "read:user"],
-        "client_redirect_uris": [
-          "https://api.orceum.com/v1/apps/APP_ID_PLACEHOLDER/oauth/callback"
-        ]
-      }
-    }
-  }'
-```
+Go to the [Orceum Developer Studio](https://orceum.com/developer-studio), click **Create App**, and select **MCP App**.
 
-From the response, note your `app_id` and update the `client_redirect_uris` with the real ID. Also register the callback URI in your GitHub OAuth App settings.
+1. **Basic Info**: Name it "GitHub Tools" and provide a description.
+2. **Authentication**: Select **OAuth 2.0**.
+3. **MCP Details**: Enter your deployment URL (e.g., `https://github-mcp.up.railway.app/mcp`) and select `STREAMABLE_HTTP` as the transport.
+4. **OAuth Configuration**: Enter your GitHub Client ID, Client Secret, and scopes (`repo`, `read:user`).
+
+Once created, copy your new App ID. You must register the Orceum callback URI (`https://api.orceum.com/v1/apps/{app_id}/oauth/callback`) in your GitHub OAuth App settings.
 
 ---
 
 ## Step 4: Verify Tool Discovery
 
-After registration, Orceum will attempt to connect to your MCP server and run `list_tools()`. Check the result:
+After registration, Orceum will attempt to connect to your MCP server and run `list_tools()`. 
 
-```bash
-curl https://api.orceum.com/v1/apps/{app_id} \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN"
-```
-
-Look for `tools_discovered` in the response. If it's `0`, check that your server is reachable.
+Check the **Tools** tab in the Developer Studio for your app. You should see your three tools (`create_issue`, `list_issues`, `search_repos`) automatically discovered. If you see zero tools, check that your server is reachable and running correctly.
 
 ---
 
@@ -213,12 +190,9 @@ Install the app as a user and try it in Orceum:
 
 ## Updating Your Tools
 
-When you add or modify tools, trigger a manifest refresh:
+When you add or modify tools in your Python code and redeploy your server, you must refresh the manifest in Orceum. 
 
-```bash
-curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN"
-```
+Go to the **Tools** tab in the Developer Studio and click **Refresh Tools**.
 
 ---
 
@@ -226,8 +200,8 @@ curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
 
 | Aspect | Native | MCP |
 |--------|--------|-----|
-| Registration | `POST /v1/apps/` | `POST /v1/apps/mcp` |
-| Actions defined | In manifest JSON | Via `list_tools()` |
-| Execution | `POST base_url + endpoint` | `call_tool(name, args)` |
-| Auth support | NONE, API_KEY, OAUTH | NONE, OAUTH only |
-| Manifest updates | Manual PATCH | `POST regenerate-manifest` |
+| Creation | Define manifest and endpoints manually | Auto-discovered via MCP endpoint |
+| Actions defined | In Developer Studio manifest JSON | Via Python tool decorators (`list_tools()`) |
+| Execution | Orceum sends HTTP POST | Orceum calls `call_tool(name, args)` |
+| Auth support | None, API Key, OAuth | None, OAuth only |
+| Updates | Manually update manifest JSON | Click **Refresh Tools** |

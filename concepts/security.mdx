@@ -130,7 +130,7 @@ Return meaningful HTTP status codes — Orceum's retry/re-auth logic depends on 
 
 ### 10. Rotate Secrets Periodically
 
-Rotate `whs_*` and OAuth `client_secret` periodically. Update them in Orceum via `PATCH /v1/apps/{app_id}` immediately after rotation to avoid a gap in service.
+Rotate your OAuth `client_secret` and Orceum secrets periodically. You can update these values directly in the **Orceum Developer Studio** immediately after rotation to avoid any gap in service.
 
 ---
 
@@ -140,8 +140,8 @@ A common point of confusion for new developers:
 
 | Secret | Prefix | Who Creates It | Who Stores It | Used For |
 |--------|--------|---------------|---------------|----------|
-| `orc_*` | `orc_` | Orceum (returned at registration) | You | Verify lifecycle webhooks Orceum sends to *your* `installation_webhook_url`. Header: `X-Orceum-Signature: sha256=...` |
-| `whs_*` | `whs_` | You (set in `webhook_config.webhook_secret`) | Orceum | Sign events you push to Orceum. Header: `X-Hub-Signature-256: sha256=...` |
+| `orc_*` | `orc_` | Orceum (shown once on creation) | You | Verify lifecycle webhooks Orceum sends to *your* `installation_webhook_url`. Header: `X-Orceum-Signature: sha256=...` |
+| `whs_*` | `whs_` | Orceum (visible in dashboard) | You | Sign events you push to Orceum. Header: `X-Hub-Signature-256: sha256=...` |
 
 ### Signature Format Differences
 

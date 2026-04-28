@@ -51,25 +51,25 @@ X-Timestamp: 2024-01-15T12:00:00Z
 ### Auth Headers by Type
 
 <Tabs>
-  <Tab title="NONE">
+  <Tab title="None">
     No credential headers injected. Your app receives only the standard headers above.
   </Tab>
-  <Tab title="API_KEY (Header)">
+  <Tab title="API Key (Header)">
     ```http
     Authorization: Bearer sk-user-provided-key
     ```
-    Or using your custom `auth_header_key`:
+    Or using your custom header:
     ```http
     X-API-Key: sk-user-provided-key
     ```
   </Tab>
-  <Tab title="API_KEY (Query)">
+  <Tab title="API Key (Query)">
     Key appended to the request URL:
-    ```
+    ```text
     POST /actions?api_key=sk-user-provided-key
     ```
   </Tab>
-  <Tab title="OAUTH">
+  <Tab title="OAuth 2.0">
     ```http
     Authorization: Bearer eyJhbGciOiJSUzI1NiIs...
     ```
@@ -81,24 +81,13 @@ X-Timestamp: 2024-01-15T12:00:00Z
 
 ## Additional Headers and Query Params
 
-Add static headers or query params to *all* action calls via `config`:
+You can configure static headers or query parameters to be appended to *all* action calls in the **Orceum Developer Studio** under your app's settings. 
 
-```json
-{
-  "config": {
-    "additional_headers": {
-      "X-App-Version": "2.0",
-      "X-Service-Region": "eu-west-1"
-    },
-    "additional_query_params": {
-      "format": "json",
-      "version": "2"
-    }
-  }
-}
-```
+For example, you might add:
+- **Additional Headers**: `X-App-Version: 2.0`, `X-Service-Region: eu-west-1`
+- **Additional Query Params**: `format=json`, `version=2`
 
-These are merged with every request, alongside the credential headers.
+These are merged with every request, alongside the user's credential headers.
 
 ---
 

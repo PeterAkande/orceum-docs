@@ -1,172 +1,78 @@
 ---
-title: "App Configuration Reference"
-description: "Full reference for the config object — webhooks, authentication, and execution settings"
+title: "App Settings Reference"
+description: "Reference for all configuration fields available in the Developer Studio — webhooks, authentication, and execution settings"
 ---
 
-The `config` object controls how Orceum interacts with your app: where to send webhook events, how to authenticate requests, what headers to include on every call, and how to guide users during installation.
+Your app settings control how Orceum interacts with your service: where to send webhook events, how to format API keys, what static headers to include on every call, and how to guide users during installation.
 
----
-
-## Complete Config Object
-
-```json
-{
-  "config": {
-    "webhook_config": {
-      "webhook_url": "https://todo.yourapp.com/webhooks/orceum",
-      "webhook_secret": "whs_your_secret",
-      "events_enabled": true
-    },
-    "installation_webhook_url": "https://todo.yourapp.com/webhooks/lifecycle",
-
-    "auth_config": {
-      "auth_header_key": "Authorization",
-      "authentication_scheme": "Bearer",
-      "api_key_location": "HEADER"
-    },
-    "oauth_config": { "..." : "..." },
-
-    "api_key_instructions": "Find your API key at Settings → API in your dashboard",
-    "api_key_format_hint": "Starts with sk- and is 40 characters long",
-
-    "additional_headers": {
-      "X-App-Version": "2.0",
-      "X-Region": "us-east-1"
-    },
-    "additional_query_params": {
-      "format": "json"
-    },
-
-    "additional_usage_info": "When listing tasks, always filter by the installation_id unless the user asks for all tasks. Tasks marked urgent should be flagged in the response."
-  }
-}
-```
+You configure all of these settings directly in the **Orceum Developer Studio**.
 
 ---
 
-## Webhook Config
+## Webhook Configuration
 
-<ParamField body="webhook_config.webhook_url" type="string">
-  Where Orceum sends events you push via `POST /v1/apps/{app_id}/events`. This is the URL your app listens on for event delivery confirmations and the lifecycle events endpoint.
-</ParamField>
+These settings control the bi-directional event flow between Orceum and your app.
 
-<ParamField body="webhook_config.webhook_secret" type="string">
-  A `whs_*` secret **you generate**. Orceum uses this to sign lifecycle webhook payloads it sends to your `installation_webhook_url`. See [Lifecycle Webhooks](/building-apps/lifecycle-webhooks).
-</ParamField>
+- **Webhook URL**: The URL where Orceum sends event delivery confirmations (when you push an event).
+- **Webhook Secret**: A secret created by Orceum and visible in the Developer Studio (typically starting with `whs_`). You use this to sign events you push to Orceum. 
+- **Events Enabled**: A toggle to allow your app to push proactive events into Orceum.
+- **Installation Webhook URL**: The URL where Orceum delivers `INSTALLED` and `UNINSTALLED` lifecycle events. This can be the same as your Webhook URL or a dedicated endpoint.
 
-<ParamField body="webhook_config.events_enabled" type="boolean" default="false">
-  Set to `true` to enable your app to push events into Orceum via the events endpoint.
-</ParamField>
-
-<ParamField body="installation_webhook_url" type="string">
-  URL where Orceum delivers `INSTALLED` and `UNINSTALLED` lifecycle events. May be the same as `webhook_url` or a separate endpoint.
-</ParamField>
+See [Webhooks](/building-apps/webhooks) and [Lifecycle Webhooks](/building-apps/lifecycle-webhooks).
 
 ---
 
-## Auth Config
+## API Key Configuration
 
-Applies when `auth_type` is `API_KEY`:
+Available when your app's Authentication Method is set to **API Key**.
 
-<ParamField body="auth_config.auth_header_key" type="string" default="X-API-KEY">
-  The HTTP header name to use for the API key.
-</ParamField>
+- **Header Name**: The HTTP header name used to send the API key (e.g., `Authorization` or `X-API-KEY`).
+- **Header Prefix**: An optional prefix before the key value (e.g., `Bearer`). Leave empty for the raw value.
+- **Key Location**: Where to inject the key. Choose between `Header` (default) or `Query Parameter`.
 
-<ParamField body="auth_config.authentication_scheme" type="string">
-  Optional prefix before the key value. Set to `"Bearer"` for `Authorization: Bearer <key>`. Leave empty for raw value.
-</ParamField>
-
-<ParamField body="auth_config.api_key_location" type="string" default="HEADER">
-  `HEADER` — key sent in a request header (default)
-  `QUERY` — key appended as a URL query parameter
-</ParamField>
-
-For OAuth configuration, see [OAuth Configuration](/configuration/oauth).
+For OAuth settings, see the dedicated [OAuth Configuration](/configuration/oauth) guide.
 
 ---
 
 ## Installation Guidance
 
-These fields are shown to users during the API key installation step:
+These fields are shown to users during the API key installation step to help them find and format their credentials.
 
-<ParamField body="api_key_instructions" type="string">
-  A plain-text instruction guiding users where to find their API key. Displayed on the installation UI.
-
-  Example: `"Find your API key at Settings → API in your dashboard. Requires Admin role."`
-</ParamField>
-
-<ParamField body="api_key_format_hint" type="string">
-  A hint about the expected format. Helps users spot mistakes before submitting.
-
-  Example: `"Starts with sk- and is exactly 51 characters long"`
-</ParamField>
+- **API Key Instructions**: Plain-text instructions guiding users where to find their API key in your product.
+  - *Example*: `"Find your API key at Settings → Developer → API in your dashboard. Requires Admin access."*
+- **API Key Format Hint**: A hint about the expected format to help users spot mistakes before submitting.
+  - *Example*: `"Starts with sk- and is exactly 40 characters long"`
 
 ---
 
-## Additional Headers and Query Params
+## Static Headers and Query Parameters
 
-Static headers and query parameters added to **every** action call, in addition to credential headers:
+Static key-value pairs added to **every** action call, in addition to the user's credential headers.
 
-<ParamField body="additional_headers" type="object">
-  Key-value pairs added as HTTP headers. Useful for service versioning, region routing, or internal tracing.
-
-  ```json
-  {
-    "X-API-Version": "2",
-    "X-Service-Region": "eu-west-1",
-    "X-Client": "orceum"
-  }
-  ```
-</ParamField>
-
-<ParamField body="additional_query_params" type="object">
-  Key-value pairs appended to the request URL as query parameters.
-
-  ```json
-  {
-    "format": "json",
-    "api_version": "2024-01"
-  }
-  ```
-</ParamField>
+- **Additional Headers**: Key-value pairs added as HTTP headers. Useful for service versioning, region routing, or internal tracing.
+  - *Example*: Key: `X-API-Version`, Value: `2.0`
+- **Additional Query Params**: Key-value pairs appended to the request URL query string.
+  - *Example*: Key: `format`, Value: `json`
 
 ---
 
 ## AI Usage Instructions
 
-<ParamField body="additional_usage_info" type="string">
-  Free-form text injected directly into the assistant's execution context when running actions for your app. Use this to communicate app-specific behaviors, constraints, or conventions that aren't expressed in action descriptions.
+- **Additional Usage Info**: Free-form text injected directly into the assistant's execution context when running actions for your app. Use this to communicate app-specific behaviors, constraints, or conventions that are difficult to express in individual action descriptions.
 
   This is your app's direct channel to the assistant at execution time.
 
   **Examples:**
   - *"Always include the user's timezone when creating calendar events."*
-  - *"Task IDs returned by `list_tasks` expire after 30 minutes — don't cache them."*
+  - *"Task IDs returned by `list_tasks` expire after 30 minutes — do not cache them."*
   - *"Every API response includes a `cursor` field — use it for pagination rather than page offsets."*
-</ParamField>
 
 <Tip>
-`additional_usage_info` is powerful for edge cases: pagination patterns, field conventions, rate limit awareness, or any behavior that's hard to capture in individual action descriptions.
+The `Additional Usage Info` field is a powerful tool for handling edge cases: pagination patterns, field conventions, rate limit awareness, or any behavior that spans across multiple actions.
 </Tip>
 
 ---
 
-## Updating Config
+## Updating Settings
 
-PATCH your app at any time to update any `config` fields:
-
-```bash
-curl -X PATCH https://api.orceum.com/v1/apps/{app_id} \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "config": {
-      "additional_usage_info": "New instructions for the assistant.",
-      "webhook_config": {
-        "events_enabled": true
-      }
-    }
-  }'
-```
-
-Config updates take effect immediately for new action calls.
+You can update any of these settings at any time in the **Orceum Developer Studio**. Changes take effect immediately for all new action calls.

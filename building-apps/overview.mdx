@@ -88,7 +88,7 @@ flowchart TD
 |---------|--------|-----|-------|
 | Transport | HTTPS POST | MCP Protocol | Orceum sandbox |
 | Manifest source | You define it | Auto-discovered via `tools/list` | `SKILL.md` bundle |
-| Auth support | NONE, API_KEY, OAUTH | NONE, OAUTH | N/A (sandbox-managed) |
+| Auth support | None, API Key, OAuth | None, OAuth | N/A (sandbox-managed) |
 | Action call format | `{ event, event_data, timestamp }` | MCP `call_tool` | Sandbox invocation |
 | Deployment required | Yes | Yes | No |
 | Webhook support | Yes | Yes | No |
@@ -102,18 +102,18 @@ flowchart TD
 flowchart TD
     R(["App Registered"])
     I["User initiates install"]
-    AT{auth_type?}
-    N["NONE → instantly ACTIVE"]
-    AK["API_KEY → collect key → ACTIVE"]
-    OA["OAUTH → redirect → consent → callback → ACTIVE"]
+    AT{Auth Method?}
+    N["None → instantly ACTIVE"]
+    AK["API Key → collect key → ACTIVE"]
+    OA["OAuth → redirect → consent → callback → ACTIVE"]
     LW["Lifecycle webhook: INSTALLED sent to your app"]
     AC(["App ready to handle action calls"])
     UN(["User uninstalls → Lifecycle webhook: UNINSTALLED"])
 
     R --> I --> AT
-    AT -->|NONE| N
-    AT -->|API_KEY| AK
-    AT -->|OAUTH| OA
+    AT -->|None| N
+    AT -->|API Key| AK
+    AT -->|OAuth| OA
     N & AK & OA --> LW --> AC
     AC --> UN
 

@@ -41,7 +41,7 @@ The `401` flow is handled automatically by Orceum:
     Your endpoint returns HTTP 401.
   </Step>
   <Step title="OAuth: attempt token refresh">
-    If `auth_type` is `OAUTH`, Orceum attempts to refresh the access token using the stored refresh token.
+    If the app uses OAuth, Orceum attempts to refresh the access token using the stored refresh token.
   </Step>
   <Step title="Retry the request">
     If refresh succeeds, Orceum retries the exact same request once with the new token.
@@ -49,8 +49,8 @@ The `401` flow is handled automatically by Orceum:
   <Step title="If refresh fails → REAUTH_REQUIRED">
     The installation status is set to `REAUTH_REQUIRED`. Orceum notifies the user with a re-authentication link.
   </Step>
-  <Step title="API_KEY: trigger re-submission">
-    If `auth_type` is `API_KEY` and you return 401, Orceum prompts the user to re-submit their API key.
+  <Step title="API Key: trigger re-submission">
+    If the app uses API Key authentication and you return 401, Orceum prompts the user to re-submit their API key.
   </Step>
 </Steps>
 

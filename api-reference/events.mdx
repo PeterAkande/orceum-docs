@@ -33,7 +33,9 @@ Pushes a real-time event into the assistant's conversation pipeline for a specif
 </ParamField>
 
 <ParamField body="event_type" type="string" required>
-  Dot-separated event descriptor: `noun.verb` — e.g. `task.completed`, `payment.failed`, `export.ready`
+  A dot-separated event descriptor (e.g., `task.completed`, `payment.failed`, `export.ready`). 
+
+  **Note:** These event types are entirely custom and defined by you. Orceum does not enforce a predefined list of events. The Orceum AI simply reads this string to understand the context of what happened in your external system.
 </ParamField>
 
 <ParamField body="event_data" type="object" required>
@@ -122,24 +124,6 @@ curl -X POST https://api.orceum.com/v1/apps/{app_id}/events \
 
 ## Verify Webhook Setup
 
-```bash
-GET /apps/{app_id}/events/verify
-```
+You can verify that your webhook endpoint is configured and reachable directly from the **Orceum Developer Studio**. 
 
-Checks that your webhook endpoint is configured and reachable.
-
-**Headers:** `Authorization: Bearer YOUR_ORCEUM_TOKEN`
-
-**Response `200`:**
-
-```json
-{
-  "reachable": true,
-  "events_enabled": true,
-  "webhook_url": "https://todo.yourapp.com/webhooks/orceum",
-  "last_event_at": "2024-01-15T11:55:00Z",
-  "last_event_id": "evt_xyz456"
-}
-```
-
-Use this endpoint to confirm your integration is working after initial setup or after changing your webhook URL.
+Navigate to your app's **Webhooks** tab and click **Test Webhook**. Orceum will attempt to ping your endpoint and report if it is reachable and properly configured.

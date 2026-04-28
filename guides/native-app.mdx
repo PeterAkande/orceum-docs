@@ -160,7 +160,23 @@ async def lifecycle_webhook(
 
 ---
 
-## Step 4: Register Your App
+## Step 4: Testing Locally (Optional)
+
+If you are developing locally, Orceum won't be able to reach your `localhost` server. You can use a tool like [ngrok](https://ngrok.com) to expose your local server to the internet.
+
+```bash
+# Run your FastAPI app locally
+uvicorn main:app --port 8000
+
+# In a separate terminal, expose port 8000 with ngrok
+ngrok http 8000
+```
+
+ngrok will give you a public URL (e.g., `https://a1b2c3d4.ngrok-free.app`). Use this URL as your `Endpoint URL` and `Webhook URL` in the next step when registering your app.
+
+---
+
+## Step 5: Register Your App
 
 Go to the [Orceum Developer Studio](https://orceum.com/developer-studio), click **Create App**, and select **Native App**.
 
@@ -209,7 +225,7 @@ When you create the app, Orceum displays an `orc_sk_...` secret. Copy this into 
 
 ---
 
-## Step 5: Install and Test
+## Step 6: Install and Test
 
 1. Navigate to your newly created app in the Orceum Store.
 2. Click **Install**.

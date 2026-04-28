@@ -155,7 +155,7 @@ If all your actions share a single endpoint (e.g. `POST /actions`), use `event` 
 
 ## Response Format
 
-Return a JSON object with a `result` key:
+Your action must return a JSON object with a top-level `result` key.
 
 ```json
 {
@@ -168,7 +168,13 @@ Return a JSON object with a `result` key:
 }
 ```
 
-The `result` value can be any JSON — an object, array, string, or number. The assistant summarizes it conversationally to the user.
+### Flexible Schema (Any Valid JSON)
+
+**Orceum does not enforce a strict schema for what goes inside the `result` key.** 
+
+The `result` value can be any valid JSON: an object, an array of items, a simple string, or a number. The Orceum AI simply reads whatever raw JSON data you return and uses it as context to formulate a natural, conversational response for the user. 
+
+You do not need to format your data into human-readable strings. Return raw structured data (like IDs, timestamps, and status codes), and let the AI do the work of explaining it to the user.
 
 ### For long-running operations
 

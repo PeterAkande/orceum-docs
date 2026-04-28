@@ -17,25 +17,35 @@ An Orceum App is a pluggable service that extends what Orceum's AI agents can **
 
 ---
 
-## Platform Architecture
+## Platform Architecture: Inbound vs. Outbound
+
+Orceum interacts with your app in two fundamentally different directions. Understanding this distinction is the key to building great apps:
+
+### 1. Inbound (Actions)
+**Orceum calls your app.** 
+When the user asks the assistant to do something (e.g., *"Send an email"* or *"Check my tasks"*), Orceum's AI selects an action from your manifest, constructs the parameters, and sends an HTTP `POST` request to your app's endpoint. Your app performs the work and returns a JSON result.
+
+### 2. Outbound (Events)
+**Your app calls Orceum.** 
+When something happens in your system asynchronously (e.g., *A new email arrives* or *A background job finishes*), your app sends an HTTP `POST` request to Orceum's `/events` endpoint. Orceum's Bouncer AI decides whether to interrupt the user with a notification or quietly add it to their context.
 
 ```mermaid
 flowchart TD
-    U(["User: 'Send an email to Sarah'"])
-    B["Orceum — AI Brain\nIdentifies app + action + params"]
-    E["Execution Engine\nResolves installation · Decrypts credentials · Calls your app"]
-    A["Your App\nReceives action call · Executes · Returns JSON"]
-    W(["Optionally push events back"])
-
-    U --> B --> E --> A
-    A -.->|webhook event| E
-    E -.->|delivers event| W
+    U(["User: 'Send an email'"])
+    B["Orceum AI Brain"]
+    A["Your App Backend"]
+    
+    U -- "1. Intent" --> B
+    B -- "2. Inbound Action Call (POST)" --> A
+    A -- "3. Action Result (JSON)" --> B
+    B -- "4. Response" --> U
+    
+    A -. "5. Outbound Event (POST /events)" .-> B
+    B -. "6. Proactive Notification" .-> U
 
     style U fill:#e67e22,color:#fff,stroke:none
     style B fill:#9b4628,color:#fff,stroke:none
-    style E fill:#9b4628,color:#fff,stroke:none
     style A fill:#c55a3a,color:#fff,stroke:none
-    style W fill:#e67e22,color:#fff,stroke:none
 ```
 
 ### Key Concepts

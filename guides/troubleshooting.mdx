@@ -64,7 +64,7 @@ description: "Common issues and solutions for Orceum app developers"
 
     **Fix:**
     - Test your MCP endpoint directly with an MCP client
-    - Try triggering `POST /v1/apps/{app_id}/regenerate-manifest`
+    - Try clicking **Refresh Tools** in the Developer Studio
     - Check that your server returns a valid tool list on `list_tools()`
   </Accordion>
 
@@ -89,7 +89,7 @@ description: "Common issues and solutions for Orceum app developers"
     // ✅ Clear trigger
     "description": "Create a new task or to-do item. Use when the user wants to add work to their list, set a reminder, or track something they need to do."
     ```
-    Also update `app_summary` in `config` to describe *when* users should use the app.
+    Make sure your app's description is clear and properly describes *when* users should use the app.
   </Accordion>
 
   <Accordion title="Installation completes with next_action: NONE but no INSTALLED webhook received">
@@ -146,23 +146,10 @@ description: "Common issues and solutions for Orceum app developers"
 
 ## Quick Diagnostics
 
-```bash
-# Check app status
-curl https://api.orceum.com/v1/apps/{app_id} \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# Check installation status  
-curl https://api.orceum.com/v1/apps/{app_id}/installations/{installation_id} \
-  -H "Authorization: Bearer USER_TOKEN"
-
-# Verify webhook endpoint is reachable
-curl https://api.orceum.com/v1/apps/{app_id}/events/verify \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# Trigger MCP manifest refresh
-curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
+You can perform quick health checks on your app directly from the **Orceum Developer Studio**:
+- View real-time installation and active user counts in the Analytics tab.
+- Click **Test Webhook** to verify your event endpoint is reachable.
+- Click **Refresh Tools** (for MCP apps) to force a manifest regeneration.
 
 ---
 

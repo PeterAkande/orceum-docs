@@ -6,7 +6,7 @@ description: "Build apps that expose tools to Orceum via the Model Context Proto
 MCP (Model Context Protocol) apps connect Orceum to external tool servers. Instead of defining actions in a manifest, your MCP server exposes a dynamic list of tools that Orceum discovers automatically.
 
 <Note>
-MCP apps use a different registration endpoint (`/v1/apps/mcp`) and execution model compared to native apps. Authentication support is limited to `NONE` and `OAUTH` — `API_KEY` is not supported for MCP.
+MCP apps use a different execution model compared to native apps. Authentication support is limited to `None` and `OAuth 2.0` — `API Key` is not supported for MCP.
 </Note>
 
 ---
@@ -81,20 +81,7 @@ After discovery, Orceum auto-generates a manifest from your tool descriptions. T
 
 If you add, remove, or update tools on your MCP server, you must refresh your app's manifest so Orceum discovers the changes. 
 
-You can do this by clicking **Refresh Tools** in the Developer Studio, or programmatically via the API:
-
-```bash
-curl -X POST https://api.orceum.com/v1/apps/{app_id}/regenerate-manifest \
-  -H "Authorization: Bearer YOUR_ORCEUM_TOKEN"
-```
-
-```json
-{
-  "status": "ok",
-  "tools_discovered": 8,
-  "manifest_updated_at": "2024-01-15T12:00:00Z"
-}
-```
+You can do this by clicking **Refresh Tools** in the **Orceum Developer Studio** under your app's Tools tab.
 
 ---
 
@@ -172,7 +159,7 @@ Write clear, specific docstrings for each tool. The assistant reads these to dec
     - OAuth credentials ready (if using OAUTH auth)
   </Accordion>
   <Accordion title="After registering">
-    - Save `app_id` for future API calls
+    - Save your App ID for your OAuth configuration
     - Register Orceum's OAuth redirect URI with your provider (if using OAUTH)
     - Verify tool discovery succeeded
     - Test a tool call end-to-end
